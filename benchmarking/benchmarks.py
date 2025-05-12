@@ -82,6 +82,7 @@ def tabrepo_benchmark(blackbox_name: str, dataset_name: str, datasets: list[str]
         datasets=datasets,
     )
 
+
 def hpob_benchmark(blackbox_name: str, dataset_name: str):
     return BenchmarkDefinition(
         max_wallclock_time=36000,
@@ -172,13 +173,13 @@ hpob_search_spaces = [
     "hpob_5889",
 ]
 
-#add all datasets for all search spaces to benchmark definitions
+# add all datasets for all search spaces to benchmark definitions
 for ss in hpob_search_spaces:
     from syne_tune.blackbox_repository import load_blackbox
 
     blackboxes = load_blackbox(ss)
     for ds in list(blackboxes.keys()):
-        benchmark_definitions[ss + '_' + ds] = hpob_benchmark(ss, ds)
+        benchmark_definitions[ss + "_" + ds] = hpob_benchmark(ss, ds)
 
 if __name__ == "__main__":
     from syne_tune.blackbox_repository import load_blackbox
