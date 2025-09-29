@@ -31,11 +31,11 @@ class MethodArguments:
 class Methods:
     # single fidelity
     # BORE = "BORE"
-    #RS = "RS"
+    # RS = "RS"
     # TPE = "TPE"
     # REA = "REA"
     # BOTorch = "BOTorch"
-    #CQR = "CQR"
+    # CQR = "CQR"
     # BOHB = "BOHB"
     HEBO = "HEBO"
 

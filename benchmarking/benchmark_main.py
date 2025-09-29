@@ -20,12 +20,12 @@ from benchmarks import benchmark_definitions
 
 
 def run(
-        method_names,
-        benchmark_names,
-        seeds,
-        checkpoint_dir,
-        max_num_evaluations=None,
-        n_workers: int = 4,
+    method_names,
+    benchmark_names,
+    seeds,
+    checkpoint_dir,
+    max_num_evaluations=None,
+    n_workers: int = 4,
 ):
     logging.getLogger("syne_tune.optimizer.schedulers").setLevel(logging.WARNING)
     logging.getLogger("syne_tune.backend").setLevel(logging.WARNING)
@@ -68,7 +68,7 @@ def run(
         ]
         scheduler = methods[method](
             MethodArguments(
-                benchmark_name=benchmark.blackbox_name + '_' + benchmark.dataset_name,
+                benchmark_name=benchmark.blackbox_name + "_" + benchmark.dataset_name,
                 config_space=backend.blackbox.configuration_space,
                 metric=benchmark.metric,
                 mode=benchmark.mode,
@@ -79,7 +79,6 @@ def run(
                 checkpoint_dir=checkpoint_dir,
                 use_surrogates=benchmark.use_surrogate,
                 points_to_evaluate=points_to_evaluate,
-
             )
         )
 
@@ -131,17 +130,17 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--run_hpob_only",
-        action='store_true',
+        action="store_true",
         help="If set, only runs hpobench benchmarks, otherwise runs all benchmarks.",
     )
     parser.add_argument(
         "--run_tabrepo_only",
-        action='store_true',
+        action="store_true",
         help="If set, only runs tabrepo benchmarks, otherwise runs all benchmarks.",
     )
     parser.add_argument(
         "--run_pd1_only",
-        action='store_true',
+        action="store_true",
         help="If set, only runs PD1 benchmarks, otherwise runs all benchmarks.",
     )
     parser.add_argument(
@@ -175,9 +174,8 @@ if __name__ == "__main__":
     else:
         seeds = [args.seed]
 
-    if args.method is None :
+    if args.method is None:
         # avoid importing nasty google vizier dependencies if we don't need them
-
 
         methods = methods
     method_names = [args.method] if args.method is not None else list(methods.keys())

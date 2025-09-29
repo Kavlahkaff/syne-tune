@@ -66,11 +66,7 @@ def _syne_tune_domain_to_optuna_dist(name: str, dom: Any) -> tuple[Any, dict]:
                 if float(computed_step).is_integer() and computed_step != 0
                 else 1
             )
-            return IntDistribution(
-                int(lower),
-                int(upper),
-                step=step_for_int,
-            ), {
+            return IntDistribution(int(lower), int(upper), step=step_for_int,), {
                 "type": "int_finite",
                 "low": lower,
                 "high": upper,

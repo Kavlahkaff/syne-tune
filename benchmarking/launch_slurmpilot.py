@@ -14,7 +14,9 @@ from benchmarking.benchmarks import benchmark_definitions
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--experiment_tag", type=str, required=False, default="hebo_optformer")
+    parser.add_argument(
+        "--experiment_tag", type=str, required=False, default="hebo_optformer"
+    )
     parser.add_argument("--n_workers", type=int, required=False, default=1)
     parser.add_argument("--num_seeds", type=int, required=False, default=1)
     parser.add_argument("--dry-run", action="store_true")
@@ -40,11 +42,11 @@ if __name__ == "__main__":
 
     print(f"Methods defined: {list(methods.keys())}")
     methods_selected = [
-        #Methods.RS,
+        # Methods.RS,
         # Methods.REA,
         # Methods.TPE,
         # Methods.BORE,
-        #Methods.CQR,
+        # Methods.CQR,
         # Methods.BOTorch,
         # Methods.BOHB,
         # Methods.ASHA,

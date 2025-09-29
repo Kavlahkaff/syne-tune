@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 
-#from syne_tune.blackbox_repository.conversion_scripts.scripts.tabrepo_import import (
+# from syne_tune.blackbox_repository.conversion_scripts.scripts.tabrepo_import import (
 #    TABREPO_DATASETS,
-#)
+# )
 
 
 @dataclass
@@ -17,7 +17,7 @@ class BenchmarkDefinition:
     dataset_name: str
     max_num_evaluations: Optional[int] = None
     surrogate: Optional[str] = None
-    use_surrogate: Optional[bool] = True,
+    use_surrogate: Optional[bool] = (True,)
     surrogate_kwargs: Optional[Dict] = None
     datasets: Optional[List[str]] = None
 
@@ -71,7 +71,6 @@ def lcbench_benchmark(dataset_name, datasets):
     )
 
 
-
 benchmark_definitions = {
     "fcnet-protein": fcnet_benchmark("protein_structure"),
     "fcnet-naval": fcnet_benchmark("naval_propulsion"),
@@ -107,7 +106,7 @@ def pd1_benchmark(dataset_name: str):
         elapsed_time_attr="metric_elapsed_time",
         metric="metric_valid_error_rate",
         mode="min",
-        blackbox_name='pd1',
+        blackbox_name="pd1",
         dataset_name=dataset_name,
         use_surrogate=True,
         surrogate="KNeighborsRegressor",
@@ -115,29 +114,31 @@ def pd1_benchmark(dataset_name: str):
     )
 
 
-tasks = ['imagenet_resnet_batch_size_512',
-         'uniref50_transformer_batch_size_128',
-         'translate_wmt_xformer_translate_batch_size_64',
-         'lm1b_transformer_batch_size_2048',
-         'imagenet_resnet_batch_size_256',
-         'mnist_max_pooling_cnn_tanh_batch_size_2048',
-         'mnist_max_pooling_cnn_tanh_batch_size_256',
-         'mnist_max_pooling_cnn_relu_batch_size_2048',
-         'mnist_max_pooling_cnn_relu_batch_size_256',
-         'mnist_simple_cnn_batch_size_2048',
-         'mnist_simple_cnn_batch_size_256',
-         'fashion_mnist_max_pooling_cnn_tanh_batch_size_2048',
-         'fashion_mnist_max_pooling_cnn_tanh_batch_size_256',
-         'fashion_mnist_max_pooling_cnn_relu_batch_size_2048',
-         'fashion_mnist_max_pooling_cnn_relu_batch_size_256',
-         'fashion_mnist_simple_cnn_batch_size_2048',
-         'fashion_mnist_simple_cnn_batch_size_256',
-         'svhn_no_extra_wide_resnet_batch_size_1024',
-         'svhn_no_extra_wide_resnet_batch_size_256',
-         'cifar100_wide_resnet_batch_size_2048',
-         'cifar100_wide_resnet_batch_size_256',
-         'cifar10_wide_resnet_batch_size_2048',
-         'cifar10_wide_resnet_batch_size_256']
+tasks = [
+    "imagenet_resnet_batch_size_512",
+    "uniref50_transformer_batch_size_128",
+    "translate_wmt_xformer_translate_batch_size_64",
+    "lm1b_transformer_batch_size_2048",
+    "imagenet_resnet_batch_size_256",
+    "mnist_max_pooling_cnn_tanh_batch_size_2048",
+    "mnist_max_pooling_cnn_tanh_batch_size_256",
+    "mnist_max_pooling_cnn_relu_batch_size_2048",
+    "mnist_max_pooling_cnn_relu_batch_size_256",
+    "mnist_simple_cnn_batch_size_2048",
+    "mnist_simple_cnn_batch_size_256",
+    "fashion_mnist_max_pooling_cnn_tanh_batch_size_2048",
+    "fashion_mnist_max_pooling_cnn_tanh_batch_size_256",
+    "fashion_mnist_max_pooling_cnn_relu_batch_size_2048",
+    "fashion_mnist_max_pooling_cnn_relu_batch_size_256",
+    "fashion_mnist_simple_cnn_batch_size_2048",
+    "fashion_mnist_simple_cnn_batch_size_256",
+    "svhn_no_extra_wide_resnet_batch_size_1024",
+    "svhn_no_extra_wide_resnet_batch_size_256",
+    "cifar100_wide_resnet_batch_size_2048",
+    "cifar100_wide_resnet_batch_size_256",
+    "cifar10_wide_resnet_batch_size_2048",
+    "cifar10_wide_resnet_batch_size_256",
+]
 
 
 for ds in tasks:
