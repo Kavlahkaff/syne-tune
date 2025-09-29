@@ -8,6 +8,7 @@ from syne_tune.optimizer.schedulers.asha import AsynchronousSuccessiveHalving
 from syne_tune.optimizer.schedulers.single_objective_scheduler import (
     SingleObjectiveScheduler,
 )
+from typing import List, Optional
 
 
 @dataclass
@@ -17,114 +18,41 @@ class MethodArguments:
     mode: str
     random_seed: int
     resource_attr: str
-    points_to_evaluate: list[dict]
-    max_t: int | None = None
-    max_resource_attr: str | None = None
+    points_to_evaluate: List[dict]
+    max_t: Optional[int] = None
+    max_resource_attr: Optional[str] = None
     use_surrogates: bool = False
-    num_brackets: int | None = 1
-    verbose: bool | None = False
+    num_brackets: Optional[int] = 1
+    verbose: Optional[bool] = False
+    checkpoint_dir: Optional[str] = None
+    benchmark_name: Optional[str] = None
 
 
 class Methods:
     # single fidelity
-    BORE = "BORE"
-    RS = "RS"
-    TPE = "TPE"
-    REA = "REA"
-    BOTorch = "BOTorch"
-    CQR = "CQR"
-    BOHB = "BOHB"
+    # BORE = "BORE"
+    #RS = "RS"
+    # TPE = "TPE"
+    # REA = "REA"
+    # BOTorch = "BOTorch"
+    #CQR = "CQR"
+    # BOHB = "BOHB"
+    HEBO = "HEBO"
 
     # multifidelity
-    ASHA = "ASHA"
-    ASHABORE = "ASHABORE"
-    ASHACQR = "ASHACQR"
+    # ASHA = "ASHA"
+    # ASHABORE = "ASHABORE"
+    # ASHACQR = "ASHACQR"
 
 
 methods = {
-    Methods.RS: lambda method_arguments: SingleObjectiveScheduler(
+    Methods.HEBO: lambda method_arguments: SingleObjectiveScheduler(
         config_space=method_arguments.config_space,
-        searcher="random_search",
+        searcher="hebo",
         metric=method_arguments.metric,
         do_minimize=method_arguments.mode == "min",
         random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.BORE: lambda method_arguments: SingleObjectiveScheduler(
-        config_space=method_arguments.config_space,
-        searcher="bore",
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.TPE: lambda method_arguments: SingleObjectiveScheduler(
-        config_space=method_arguments.config_space,
-        searcher="kde",
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.CQR: lambda method_arguments: SingleObjectiveScheduler(
-        config_space=method_arguments.config_space,
-        searcher="cqr",
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.BOTorch: lambda method_arguments: SingleObjectiveScheduler(
-        config_space=method_arguments.config_space,
-        searcher="botorch",
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.REA: lambda method_arguments: SingleObjectiveScheduler(
-        config_space=method_arguments.config_space,
-        searcher="regularized_evolution",
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.BOHB: lambda method_arguments: AsynchronousSuccessiveHalving(
-        config_space=method_arguments.config_space,
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher="kde",
-        time_attr=method_arguments.resource_attr,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.ASHA: lambda method_arguments: AsynchronousSuccessiveHalving(
-        config_space=method_arguments.config_space,
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher="random_search",
-        time_attr=method_arguments.resource_attr,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.ASHACQR: lambda method_arguments: AsynchronousSuccessiveHalving(
-        config_space=method_arguments.config_space,
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher="cqr",
-        time_attr=method_arguments.resource_attr,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
-    ),
-    Methods.ASHABORE: lambda method_arguments: AsynchronousSuccessiveHalving(
-        config_space=method_arguments.config_space,
-        metric=method_arguments.metric,
-        do_minimize=method_arguments.mode == "min",
-        random_seed=method_arguments.random_seed,
-        searcher="bore",
-        time_attr=method_arguments.resource_attr,
-        searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
+        # searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
     ),
 }
 
@@ -140,9 +68,9 @@ if __name__ == "__main__":
     benchmarks = [
         "fcnet-protein",
         "nas201-cifar10",
-        "lcbench-Fashion-MNIST",
-        "tabrepo-RandomForest-2dplanes",
-        "hpob_5636_3492",
+        # "lcbench-Fashion-MNIST",
+        # "tabrepo-RandomForest-2dplanes",
+        # "hpob_5636_3492",
     ]
     for benchmark_name in benchmarks:
         benchmark = benchmark_definitions[benchmark_name]

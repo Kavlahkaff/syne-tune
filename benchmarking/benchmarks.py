@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from typing import Optional, List, Dict
 
-from syne_tune.blackbox_repository.conversion_scripts.scripts.tabrepo_import import (
-    TABREPO_DATASETS,
-)
+#from syne_tune.blackbox_repository.conversion_scripts.scripts.tabrepo_import import (
+#    TABREPO_DATASETS,
+#)
 
 
 @dataclass
@@ -14,10 +15,11 @@ class BenchmarkDefinition:
     mode: str
     blackbox_name: str
     dataset_name: str
-    max_num_evaluations: int | None = None
-    surrogate: str | None = None
-    surrogate_kwargs: dict | None = None
-    datasets: list[str] | None = None
+    max_num_evaluations: Optional[int] = None
+    surrogate: Optional[str] = None
+    use_surrogate: Optional[bool] = True,
+    surrogate_kwargs: Optional[Dict] = None
+    datasets: Optional[List[str]] = None
 
 
 n_full_evals = 200
@@ -32,19 +34,21 @@ def fcnet_benchmark(dataset_name):
         mode="min",
         blackbox_name="fcnet",
         dataset_name=dataset_name,
+        use_surrogate=True,
         # allow to stop after having seen the equivalent of `n_full_evals` evaluations
-        max_num_evaluations=100 * n_full_evals,
+        max_num_evaluations=n_full_evals,
     )
 
 
 def nas201_benchmark(dataset_name):
     return BenchmarkDefinition(
         max_wallclock_time=72000 if dataset_name == "ImageNet16-120" else 36000,
-        max_num_evaluations=200 * n_full_evals,
+        max_num_evaluations=n_full_evals,
         n_workers=4,
         elapsed_time_attr="metric_elapsed_time",
         metric="metric_valid_error",
         mode="min",
+        use_surrogate=True,
         blackbox_name="nasbench201",
         dataset_name=dataset_name,
     )
@@ -53,48 +57,19 @@ def nas201_benchmark(dataset_name):
 def lcbench_benchmark(dataset_name, datasets):
     return BenchmarkDefinition(
         max_wallclock_time=36000,
-        max_num_evaluations=52 * n_full_evals,
+        max_num_evaluations=n_full_evals,
         n_workers=4,
         elapsed_time_attr="time",
         metric="val_accuracy",
         mode="max",
         blackbox_name="lcbench",
         dataset_name=dataset_name,
+        use_surrogate=True,
         surrogate="KNeighborsRegressor",
         surrogate_kwargs={"n_neighbors": 1},
         datasets=datasets,
     )
 
-
-def tabrepo_benchmark(blackbox_name: str, dataset_name: str, datasets: list[str]):
-    return BenchmarkDefinition(
-        max_wallclock_time=36000,
-        max_num_evaluations=1 * n_full_evals,
-        n_workers=4,
-        elapsed_time_attr="metric_elapsed_time",  # todo should also include time_train_s + time_infer_s as metric
-        metric="metric_error_val",  # could also do rank
-        mode="min",
-        blackbox_name=blackbox_name,
-        dataset_name=dataset_name,
-        surrogate="KNeighborsRegressor",
-        surrogate_kwargs={"n_neighbors": 1},
-        datasets=datasets,
-    )
-
-
-def hpob_benchmark(blackbox_name: str, dataset_name: str):
-    return BenchmarkDefinition(
-        max_wallclock_time=36000,
-        max_num_evaluations=1 * n_full_evals,
-        n_workers=4,
-        elapsed_time_attr="metric_elapsed_time",
-        metric="metric_accuracy",
-        mode="max",
-        blackbox_name=blackbox_name,
-        dataset_name=dataset_name,
-        surrogate="KNeighborsRegressor",
-        surrogate_kwargs={"n_neighbors": 1},
-    )
 
 
 benchmark_definitions = {
@@ -105,17 +80,6 @@ benchmark_definitions = {
     "nas201-cifar10": nas201_benchmark("cifar10"),
     "nas201-cifar100": nas201_benchmark("cifar100"),
     "nas201-ImageNet16-120": nas201_benchmark("ImageNet16-120"),
-    # TODO currently fails
-    # "nas301-yahpo": BenchmarkDefinition(
-    #     max_wallclock_time=3600 * 100,
-    #     elapsed_time_attr="runtime",
-    #     metric="val_accuracy",
-    #     blackbox_name="yahpo-nb301",
-    #     dataset_name="CIFAR10",
-    #     mode="max",
-    #     n_workers=4,
-    #     max_num_evaluations=97 * n_full_evals,
-    # ),
 }
 
 
@@ -132,54 +96,53 @@ for task in lc_bench_datasets:
         "lcbench-" + task.replace("_", "-").replace(".", "")
     ] = lcbench_benchmark(task, datasets=lc_bench_datasets)
 
-
-# We select a sublist of search spaces
-tabrepo_search_spaces = [
-    "RandomForest",
-    "CatBoost",
-    "LightGBM",
-    "NeuralNetTorch",
-    "ExtraTrees",
-]
-# TODO find list of 10 representative datasets among the 200+ available
-tabrepo_datasets = TABREPO_DATASETS[:10]
-for task in tabrepo_datasets:
-    for search_space in tabrepo_search_spaces:
-        benchmark_definitions[
-            f"tabrepo-{search_space}-" + task.replace("_", "-").replace(".", "")
-        ] = tabrepo_benchmark(
-            blackbox_name=f"tabrepo_{search_space}",
-            dataset_name=task,
-            datasets=tabrepo_datasets,
-        )
-
-hpob_search_spaces = [
-    "hpob_4796",
-    "hpob_5527",
-    "hpob_5636",
-    "hpob_5859",
-    "hpob_5860",
-    "hpob_5891",
-    "hpob_5906",
-    "hpob_5965",
-    "hpob_5970",
-    "hpob_5971",
-    "hpob_6766",
-    "hpob_6767",
-    "hpob_6794",
-    "hpob_7607",
-    "hpob_7609",
-    "hpob_5889",
-]
+n_full_evals = 100
 
 
-# add all datasets for all search spaces to benchmark definitions
-for ss in hpob_search_spaces:
-    from syne_tune.blackbox_repository import load_blackbox
+def pd1_benchmark(dataset_name: str):
+    return BenchmarkDefinition(
+        max_wallclock_time=3600000000,
+        max_num_evaluations=n_full_evals,
+        n_workers=4,
+        elapsed_time_attr="metric_elapsed_time",
+        metric="metric_valid_error_rate",
+        mode="min",
+        blackbox_name='pd1',
+        dataset_name=dataset_name,
+        use_surrogate=True,
+        surrogate="KNeighborsRegressor",
+        surrogate_kwargs={"n_neighbors": 1},
+    )
 
-    blackboxes = load_blackbox(ss)
-    for ds in list(blackboxes.keys()):
-        benchmark_definitions[ss + "_" + ds] = hpob_benchmark(ss, ds)
+
+tasks = ['imagenet_resnet_batch_size_512',
+         'uniref50_transformer_batch_size_128',
+         'translate_wmt_xformer_translate_batch_size_64',
+         'lm1b_transformer_batch_size_2048',
+         'imagenet_resnet_batch_size_256',
+         'mnist_max_pooling_cnn_tanh_batch_size_2048',
+         'mnist_max_pooling_cnn_tanh_batch_size_256',
+         'mnist_max_pooling_cnn_relu_batch_size_2048',
+         'mnist_max_pooling_cnn_relu_batch_size_256',
+         'mnist_simple_cnn_batch_size_2048',
+         'mnist_simple_cnn_batch_size_256',
+         'fashion_mnist_max_pooling_cnn_tanh_batch_size_2048',
+         'fashion_mnist_max_pooling_cnn_tanh_batch_size_256',
+         'fashion_mnist_max_pooling_cnn_relu_batch_size_2048',
+         'fashion_mnist_max_pooling_cnn_relu_batch_size_256',
+         'fashion_mnist_simple_cnn_batch_size_2048',
+         'fashion_mnist_simple_cnn_batch_size_256',
+         'svhn_no_extra_wide_resnet_batch_size_1024',
+         'svhn_no_extra_wide_resnet_batch_size_256',
+         'cifar100_wide_resnet_batch_size_2048',
+         'cifar100_wide_resnet_batch_size_256',
+         'cifar10_wide_resnet_batch_size_2048',
+         'cifar10_wide_resnet_batch_size_256']
+
+
+for ds in tasks:
+    benchmark_definitions["pd1_" + ds] = pd1_benchmark(ds)
+
 
 if __name__ == "__main__":
     from syne_tune.blackbox_repository import load_blackbox

@@ -14,10 +14,11 @@ from benchmarking.benchmarks import benchmark_definitions
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--experiment_tag", type=str, required=False, default="bench")
+    parser.add_argument("--experiment_tag", type=str, required=False, default="hebo_optformer")
     parser.add_argument("--n_workers", type=int, required=False, default=1)
     parser.add_argument("--num_seeds", type=int, required=False, default=1)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--checkpoint_dir", type=str, required=False, default="")
 
     parser.add_argument("--cluster", type=str, required=True)
     parser.add_argument("--partition", type=str, required=True)
@@ -39,16 +40,17 @@ if __name__ == "__main__":
 
     print(f"Methods defined: {list(methods.keys())}")
     methods_selected = [
-        Methods.RS,
-        Methods.REA,
-        Methods.TPE,
-        Methods.BORE,
-        Methods.CQR,
-        Methods.BOTorch,
-        Methods.BOHB,
-        Methods.ASHA,
-        Methods.ASHACQR,
-        Methods.ASHABORE,
+        #Methods.RS,
+        # Methods.REA,
+        # Methods.TPE,
+        # Methods.BORE,
+        #Methods.CQR,
+        # Methods.BOTorch,
+        # Methods.BOHB,
+        # Methods.ASHA,
+        # Methods.ASHACQR,
+        # Methods.ASHABORE,
+        Methods.HEBO,
     ]
     print(f"{len(methods_selected)} methods selected: {methods_selected}")
 
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     config = load_config()
 
     slurm = SlurmPilot(config=config, clusters=[cluster], ssh_engine="ssh")
-    max_runtime_minutes = 60 * 24 - 1
+    max_runtime_minutes = 60 * 24 * 2 - 1
     python_args = []
     for method in tqdm(methods_selected):
         assert method in methods, f"{method} not in {methods}"
@@ -84,18 +86,15 @@ if __name__ == "__main__":
         python_args=python_args,
         src_dir=str(Path(__file__).parent),
         python_binary="python",
-        python_libraries=[
-            str(Path(__file__).parent.parent / "syne_tune"),
-        ],
-        n_cpus=8,
-        mem=1024 * 8,
+        n_cpus=4,
+        mem=1024 * 16,
         max_runtime_minutes=max_runtime_minutes,
-        bash_setup_command="source ~/.bashrc; conda activate synetune",
+        bash_setup_command="module load Python/3.11.3-GCCcore-12.3.0  \n source /home/sc.uni-leipzig.de/de28oser/.hebo_venv/bin/activate \n python -m pip install huggingface_hub fastparquet",
         env={
             # write tuner files in Slurmpilot folder corresponding to `jobname`
-            "SYNETUNE_FOLDER": f"{slurmpilot_folder}/{jobname}",
+            "SYNETUNE_FOLDER": f"~/slurmpilot/jobs/{jobname}",
         },
-        n_concurrent_jobs=128,  # max number of jobs to run at the same time
+        n_concurrent_jobs=40,  # max number of jobs to run at the same time
     )
     if not args.dry_run:
         jobid = slurm.schedule_job(jobinfo)

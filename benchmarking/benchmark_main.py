@@ -5,13 +5,6 @@ from argparse import ArgumentParser
 import numpy as np
 from tqdm import tqdm
 
-from benchmarking.baselines import (
-    MethodArguments,
-    methods,
-)
-from benchmarking.benchmarks import (
-    benchmark_definitions,
-)
 from syne_tune.backend.simulator_backend.simulator_callback import SimulatorCallback
 from syne_tune.blackbox_repository.simulated_tabular_backend import (
     BlackboxRepositoryBackend,
@@ -19,13 +12,20 @@ from syne_tune.blackbox_repository.simulated_tabular_backend import (
 from syne_tune.stopping_criterion import StoppingCriterion
 from syne_tune.tuner import Tuner
 
+from baselines import (
+    MethodArguments,
+    methods,
+)
+from benchmarks import benchmark_definitions
+
 
 def run(
-    method_names,
-    benchmark_names,
-    seeds,
-    max_num_evaluations=None,
-    n_workers: int = 4,
+        method_names,
+        benchmark_names,
+        seeds,
+        checkpoint_dir,
+        max_num_evaluations=None,
+        n_workers: int = 4,
 ):
     logging.getLogger("syne_tune.optimizer.schedulers").setLevel(logging.WARNING)
     logging.getLogger("syne_tune.backend").setLevel(logging.WARNING)
@@ -39,6 +39,7 @@ def run(
     exp_names = []
     for method, seed, benchmark_name in tqdm(combinations):
         np.random.seed(seed)
+
         benchmark = benchmark_definitions[benchmark_name]
 
         print(f"Starting experiment ({method}/{benchmark_name}/{seed})")
@@ -67,6 +68,7 @@ def run(
         ]
         scheduler = methods[method](
             MethodArguments(
+                benchmark_name=benchmark.blackbox_name + '_' + benchmark.dataset_name,
                 config_space=backend.blackbox.configuration_space,
                 metric=benchmark.metric,
                 mode=benchmark.mode,
@@ -74,14 +76,16 @@ def run(
                 max_t=max_t,
                 resource_attr=resource_attr,
                 num_brackets=1,
-                use_surrogates="lcbench" in benchmark_name,
+                checkpoint_dir=checkpoint_dir,
+                use_surrogates=benchmark.use_surrogate,
                 points_to_evaluate=points_to_evaluate,
+
             )
         )
 
         stop_criterion = StoppingCriterion(
-            max_wallclock_time=benchmark.max_wallclock_time,
-            max_num_evaluations=max_num_evaluations
+            #            max_wallclock_time=benchmark.max_wallclock_time,
+            max_num_trials_completed=max_num_evaluations
             if max_num_evaluations
             else benchmark.max_num_evaluations,
         )
@@ -125,7 +129,21 @@ if __name__ == "__main__":
         default=0,
         help="If 1 runs all seeds between [0, args.seed] if 0 run only args.seed.",
     )
-
+    parser.add_argument(
+        "--run_hpob_only",
+        action='store_true',
+        help="If set, only runs hpobench benchmarks, otherwise runs all benchmarks.",
+    )
+    parser.add_argument(
+        "--run_tabrepo_only",
+        action='store_true',
+        help="If set, only runs tabrepo benchmarks, otherwise runs all benchmarks.",
+    )
+    parser.add_argument(
+        "--run_pd1_only",
+        action='store_true',
+        help="If set, only runs PD1 benchmarks, otherwise runs all benchmarks.",
+    )
     parser.add_argument(
         "--method",
         type=str,
@@ -136,7 +154,7 @@ if __name__ == "__main__":
         "--benchmark",
         type=str,
         required=False,
-        help="a benchmark to run from benchmarks.py, run all by default.",
+        help="a benchmark to run from blackbox_benchmarks.py, run all by default.",
     )
     parser.add_argument(
         "--n_workers",
@@ -144,20 +162,34 @@ if __name__ == "__main__":
         type=int,
         default=4,
     )
-
+    parser.add_argument(
+        "--checkpoint_dir",
+        type=str,
+        required=False,
+        default="",
+        help="directory for optformer model checkpoints",
+    )
     args, _ = parser.parse_known_args()
     if args.run_all_seeds:
         seeds = list(range(args.seed))
     else:
         seeds = [args.seed]
+
+    if args.method is None :
+        # avoid importing nasty google vizier dependencies if we don't need them
+
+
+        methods = methods
     method_names = [args.method] if args.method is not None else list(methods.keys())
-    benchmark_names = (
-        [args.benchmark]
-        if args.benchmark is not None
-        else list(benchmark_definitions.keys())
-    )
+
+    if args.benchmark is not None:
+        benchmark_names = [args.benchmark]
+    else:
+        benchmark_names = list(benchmark_definitions.keys())
+
     run(
         method_names=method_names,
+        checkpoint_dir=args.checkpoint_dir,
         benchmark_names=benchmark_names,
         seeds=seeds,
         n_workers=args.n_workers,

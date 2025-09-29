@@ -134,7 +134,7 @@ class TPE(SingleObjectiveScheduler):
         points_to_evaluate: list[dict] | None = None,
         num_min_data_points: int | None = None,
         top_n_percent: int = 15,
-        min_bandwidth: float = 1e-3,
+        min_bandwidth: float = 3.5e-15,
         num_candidates: int = 64,
         bandwidth_factor: int = 3,
         random_fraction: float = 0.33,
