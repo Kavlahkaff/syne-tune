@@ -93,6 +93,21 @@ def hpob_benchmark(blackbox_name: str, dataset_name: str):
     )
 
 
+def autoencodix_benchmark(blackbox_name: str, dataset_name: str):
+    return BenchmarkDefinition(
+        max_wallclock_time=36000,
+        max_num_evaluations=1 * n_full_evals,
+        n_workers=4,
+        elapsed_time_attr="metric_elapsed_time",
+        metric="metric_valid_recon_loss",
+        mode="min",
+        blackbox_name=blackbox_name,
+        dataset_name=dataset_name,
+        surrogate="KNeighborsRegressor",
+        surrogate_kwargs={"n_neighbors": 1},
+    )
+
+
 benchmark_definitions = {
     "fcnet-protein": fcnet_benchmark("protein_structure"),
     "fcnet-naval": fcnet_benchmark("naval_propulsion"),
@@ -165,6 +180,40 @@ for ss in hpob_search_spaces:
     blackboxes = load_blackbox(ss)
     for ds in list(blackboxes.keys())[:1]:  # limit to first dataset for faster testing
         benchmark_definitions[ss + "_" + ds] = hpob_benchmark(ss, ds)
+
+autoencodix_search_spaces = ["vanillix", "varix", "ontix" "disentanglix"]
+
+autoencodix_tasks = [
+    "schc_RNA_METH_CLIN",
+    "schc_METH_CLIN",
+    "schc_RNA_CLIN",
+    "tcga_RNA_CLIN",
+    "tcga_METH_CLIN",
+    "tcga_DNA_CLIN",
+    "tcga_RNA_DNA_METH_CLIN",
+]
+
+
+for task in autoencodix_tasks:
+    for search_space in autoencodix_search_spaces:
+        if search_space == "ontix":
+            for ontology in ["reactome", "chromosome"]:
+                benchmark_definitions[
+                    f"autoencodix-{search_space}-"
+                    + task.replace("_", "-").replace(".", "")
+                    + "-"
+                    + ontology
+                ] = autoencodix_benchmark(
+                    blackbox_name=f"autoencodix_{search_space}",
+                    dataset_name=task + "_" + ontology,
+                )
+        else:
+            benchmark_definitions[
+                f"autoencodix-{search_space}-" + task.replace("_", "-").replace(".", "")
+            ] = autoencodix_benchmark(
+                blackbox_name=f"autoencodix_{search_space}",
+                dataset_name=task,
+            )
 
 if __name__ == "__main__":
     from syne_tune.blackbox_repository import load_blackbox
