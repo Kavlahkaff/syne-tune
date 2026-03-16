@@ -19,7 +19,7 @@ from syne_tune.util import catchtime
 
 RESULTS_ROOT = Path("/Users/lucathale-bombien/autoencodix_results")
 
-METRIC_ELAPSED_TIME = "metric_runtime_seconds"
+METRIC_ELAPSED_TIME = "metric_elapsed_time"
 METRIC_RECON_LOSS = "metric_valid_recon_loss"
 METRIC_DOWNSTREAM = "metric_avg_ml_task_performance"
 TIME_ATTR = "epoch"
