@@ -132,7 +132,7 @@ def run(
         callbacks=[SimulatorCallback()],
         metadata={
             "seed": random_seed,
-            "algorithm": args.searcher,
+            "algorithm": "quantile_transfer",
             "benchmark": architecture + "-" + test_task,
         },
     )

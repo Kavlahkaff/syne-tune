@@ -120,7 +120,7 @@ def run(
         callbacks=[SimulatorCallback()],
         metadata={
             "seed": random_seed,
-            "algorithm": args.searcher,
+            "algorithm": "zero_shot",
             "benchmark": architecture + "-" + test_task,
         },
     )
