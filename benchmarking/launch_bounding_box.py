@@ -15,6 +15,35 @@ import numpy as np
 from syne_tune.optimizer.schedulers.transfer_learning.bounding_box import BoundingBox
 logger = logging.getLogger(__name__)
 
+def make_tuner_name(args) -> str:
+    # --- metric abbreviation ---
+    metric_short = {
+        METRIC_DOWNSTREAM:   "ds",
+        METRIC_RECON_LOSS:   "rl",
+        METRIC_ELAPSED_TIME: "et",
+    }.get(args.metric, args.metric[:4])
+
+    # --- extra-architectures suffix (sorted for stability) ---
+    extra = "+".join(sorted(args.extra_architectures)) if args.extra_architectures else "none"
+
+    # --- boolean flags as compact bits ---
+    flags = "".join([
+        "A" if args.all_datasets    else "a",   # All-datasets on/off
+        "X" if args.cross_arch_only else "x",   # Cross-arch-only on/off
+    ])
+
+    tuner_name = (
+        f"ZeroShot"
+        f"-{args.architecture}"          # target architecture
+        f"-{args.test_task}"             # held-out task
+        f"-{args.searcher}"
+        f"-{metric_short}"               # optimisation metric
+        f"-{flags}"                      # three boolean switches
+        f"-x{extra}"                     # extra source architectures
+        f"-r{args.seed}"                 # random seed
+    )
+    return tuner_name
+
 def run(
     architecture: str,
     test_task: str,
@@ -32,7 +61,7 @@ def run(
     blackbox_name = f"autoencodix_{architecture}"
 
     # Load once and reuse across cycles to avoid redundant I/O
-    bb_dict = load_blackbox(blackbox_name)
+    bb_dict = load_blackbox(blackbox_name, local_files_only=True)
     available_tasks = sorted(bb_dict)
     logger.info("Blackbox '%s' — tasks: %s", blackbox_name, available_tasks)
 
@@ -49,7 +78,7 @@ def run(
             continue
         arch_bb_name = f"autoencodix_{arch}"
         logger.info("Loading extra-architecture blackbox '%s' …", arch_bb_name)
-        extra_bb_dicts[arch] = load_blackbox(arch_bb_name)
+        extra_bb_dicts[arch] = load_blackbox(arch_bb_name, local_files_only=True)
 
 
     transfer_learning_evaluations = load_transfer_learning_evaluations(
@@ -91,8 +120,9 @@ def run(
         surrogate_kwargs={"n_neighbors": 1},
     )
 
+    name = make_tuner_name(args)
     tuner = Tuner(
-        tuner_name=f"BoudingBox-{searcher}-{random_seed}-{test_task}",
+        tuner_name=name,
         suffix_tuner_name=False,
         trial_backend=trial_backend,
         scheduler=scheduler,
@@ -100,29 +130,32 @@ def run(
         n_workers=n_workers,
         sleep_time=0,           # mandatory for SimulatorBackend
         callbacks=[SimulatorCallback()],
+        metadata={
+            "seed": random_seed,
+            "algorithm": args.searcher,
+            "benchmark": architecture + "-" + test_task,
+        },
     )
 
     tuner.run()
 
     # ── Final report ──────────────────────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print(f"Overall best result (transfer learning / BoundingBox)")
-    print(f"Architecture : {architecture}")
-    print(f"Test task    : {test_task}")
-    print(f"Metric       : {metric}  ({'min' if do_minimize else 'max'})")
-    if extra_architectures:
-        print(f"Extra sources: {extra_architectures}")
-    print(f"{'='*60}")
+    #print(f"\n{'='*60}")
+    #print(f"Overall best result (transfer learning / BoundingBox)")
+    #print(f"Architecture : {architecture}")
+    #print(f"Test task    : {test_task}")
+    #print(f"Metric       : {metric}  ({'min' if do_minimize else 'max'})")
+    #if extra_architectures:
+    #    print(f"Extra sources: {extra_architectures}")
+    #print(f"{'='*60}")
 
-    best_experiment = load_experiment(tuner.name)
-    best_config     = best_experiment.best_config()
-    target_cs       = bb_dict[test_task].configuration_space
-    print("\n".join(
-        f"  {k}: {v}" for k, v in best_config.items()
-        if k in target_cs
-    ))
-
-    best_experiment.plot()
+    #best_experiment = load_experiment(tuner.name)
+    #best_config     = best_experiment.best_config()
+    #target_cs       = bb_dict[test_task].configuration_space
+    #print("\n".join(
+    #    f"  {k}: {v}" for k, v in best_config.items()
+    #    if k in target_cs
+    #))
 
 
 def parse_args() -> argparse.Namespace:

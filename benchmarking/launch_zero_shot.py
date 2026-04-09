@@ -57,7 +57,7 @@ def run(
 ) -> None:
     np.random.seed(args.seed)
     blackbox_name = f"autoencodix_{architecture}"
-    bb_dict = load_blackbox(blackbox_name)
+    bb_dict = load_blackbox(blackbox_name, local_files_only=True)
     available_tasks = sorted(bb_dict)
     logger.info("Blackbox '%s' — tasks: %s", blackbox_name, available_tasks)
 
@@ -76,7 +76,7 @@ def run(
             continue
         arch_bb_name = f"autoencodix_{arch}"
         logger.info("Loading extra-architecture blackbox '%s' …", arch_bb_name)
-        extra_bb_dicts[arch] = load_blackbox(arch_bb_name)
+        extra_bb_dicts[arch] = load_blackbox(arch_bb_name, local_files_only=True)
 
 
     transfer_learning_evaluations = load_transfer_learning_evaluations(
@@ -118,6 +118,11 @@ def run(
         n_workers=n_workers,
         sleep_time=0,
         callbacks=[SimulatorCallback()],
+        metadata={
+            "seed": random_seed,
+            "algorithm": args.searcher,
+            "benchmark": architecture + "-" + test_task,
+        },
     )
 
     tuner.run()
