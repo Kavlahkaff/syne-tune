@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--cluster", type=str, required=True)
     parser.add_argument("--partition", type=str, required=True)
     parser.add_argument(
-        "--slurmpilot_folder", type=str, required=False, default="~/slurmpilot/jobs"
+        "--slurmpilot_folder", type=str, required=False, default="~/slurmpilot/minimization"
     )
 
     parser.add_argument("--sbatch_arguments", type=str, required=False)
@@ -53,10 +53,11 @@ if __name__ == "__main__":
     print(f"{len(methods_selected)} methods selected: {methods_selected}")
 
     benchmarks_selected = list(benchmark_definitions.keys())
+    print(len(benchmarks_selected))
     config = load_config()
 
     slurm = SlurmPilot(config=config, clusters=[cluster], ssh_engine="ssh")
-    max_runtime_minutes = 60 * 24 - 1
+    max_runtime_minutes = 600
     python_args = []
     for method in tqdm(methods_selected):
         assert method in methods, f"{method} not in {methods}"
@@ -90,12 +91,12 @@ if __name__ == "__main__":
         n_cpus=8,
         mem=1024 * 8,
         max_runtime_minutes=max_runtime_minutes,
-        bash_setup_command="source ~/.bashrc; conda activate synetune",
+        bash_setup_command="source ~/syne-tune/.venv/bin/activate",
         env={
             # write tuner files in Slurmpilot folder corresponding to `jobname`
             "SYNETUNE_FOLDER": f"{slurmpilot_folder}/{jobname}",
         },
-        n_concurrent_jobs=128,  # max number of jobs to run at the same time
+        n_concurrent_jobs=50,  # max number of jobs to run at the same time
     )
     if not args.dry_run:
         jobid = slurm.schedule_job(jobinfo)

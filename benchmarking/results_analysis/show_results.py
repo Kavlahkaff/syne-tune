@@ -37,30 +37,41 @@ lw = 2.5
 alpha = 0.7
 matplotlib.rcParams.update({"font.size": 15})
 benchmark_families = [
-    "fcnet",
-    "lcbench",
-    "nas201",
-    "tabrepo-ExtraTrees",
-    "tabrepo-RandomForest",
-    "tabrepo-LightGBM",
-    "tabrepo-CatBoost",
-    # "yahpo"
-    "hpob_4796",
-    "hpob_5527",
-    "hpob_5636",
-    "hpob_5859",
-    "hpob_5860",
-    "hpob_5891",
-    "hpob_5906",
-    "hpob_5965",
-    "hpob_5970",
-    "hpob_5971",
-    "hpob_6766",
-    "hpob_6767",
-    "hpob_6794",
-    "hpob_7607",
-    "hpob_7609",
-    "hpob_5889",
+    "vanillix-schc-RNA-METH-CLIN",
+    "vanillix-schc-METH-CLIN",
+    "vanillix-schc-RNA-CLIN",
+    "vanillix-tcga-RNA-CLIN",
+    "vanillix-tcga-METH-CLIN",
+    "vanillix-tcga-DNA-CLIN",
+    "vanillix-tcga-RNA-DNA-METH-CLIN",
+    "varix-schc-RNA-METH-CLIN",
+    "varix-schc-METH-CLIN",
+    "varix-schc-RNA-CLIN",
+    "varix-tcga-RNA-CLIN",
+    "varix-tcga-METH-CLIN",
+    "varix-tcga-DNA-CLIN",
+    "varix-tcga-RNA-DNA-METH-CLIN",
+    "disentanglix-schc-RNA-METH-CLIN",
+    "disentanglix-schc-METH-CLIN",
+    "disentanglix-schc-RNA-CLIN",
+    "disentanglix-tcga-RNA-CLIN",
+    "disentanglix-tcga-METH-CLIN",
+    "disentanglix-tcga-DNA-CLIN",
+    "disentanglix-tcga-RNA-DNA-METH-CLIN",
+    "ontix-schc-RNA-METH-CLIN-reactome",
+    "ontix-schc-METH-CLIN-reactome",
+    "ontix-schc-RNA-CLIN-reactome",
+    "ontix-tcga-RNA-CLIN-reactome",
+    "ontix-tcga-METH-CLIN-reactome",
+    "ontix-tcga-DNA-CLIN-reactome",
+    "ontix-tcga-RNA-DNA-METH-CLIN-reactome",
+    "ontix-schc-RNA-METH-CLIN-chromosome",
+    "ontix-schc-METH-CLIN-chromosome",
+    "ontix-schc-RNA-CLIN-chromosome",
+    "ontix-tcga-RNA-CLIN-chromosome",
+    "ontix-tcga-METH-CLIN-chromosome",
+    "ontix-tcga-DNA-CLIN-chromosome",
+    "ontix-tcga-RNA-DNA-METH-CLIN-chromosome",
 ]
 benchmark_names = {
     "fcnet": "\\FCNet{}",
@@ -78,6 +89,8 @@ def plot_result_benchmark(
     ax=None,
     methods_to_show: list = None,
     plot_regret: bool = True,
+    y_log_scale: bool = False,          # <-- add
+    y_limits: tuple[float, float] = None,  # <-- add
 ):
     agg_results = {}
 
@@ -117,7 +130,10 @@ def plot_result_benchmark(
             )
 
             agg_results[algorithm] = mean
-
+        if y_log_scale:
+            ax.set_yscale("log")
+        if y_limits is not None:
+            ax.set_ylim(y_limits[0], y_limits[1])
         ax.set_xlabel("Wallclock time")
         ax.legend()
         ax.set_title(title)
@@ -132,6 +148,8 @@ def plot_task_performance_over_time(
     ax=None,
     methods_to_show: list = None,
     plot_regret: bool = False,
+    y_log_scale: bool = False,           # <-- add
+    y_limits: tuple[float, float] = None,  # <-- add
 ):
     print(f"plot rank through time on {result_folder}")
     for benchmark, (t_range, method_dict) in benchmark_results.items():
@@ -143,14 +161,16 @@ def plot_task_performance_over_time(
             methods_to_show=methods_to_show,
             rename_dict=rename_dict,
             plot_regret=plot_regret,
+            y_log_scale=y_log_scale,  # <-- add
+            y_limits=y_limits,  # <-- add
         )
         ax.set_ylabel("objective")
         if title is not None:
             ax.set_title(title)
-        if not plot_regret:
+        if not plot_regret and y_limits is None:  # only apply old range if no override
             if benchmark in plot_range:
                 plotargs = plot_range[benchmark]
-                ax.set_ylim([plotargs.ymin, plotargs.ymax])
+                ax.set_ylim([plotargs.ymin, plotargs.ymax / 3])
                 ax.set_xlim([plotargs.xmin, plotargs.xmax])
 
         if ax is not None:
@@ -165,7 +185,7 @@ def load_and_cache(
     methods: list[str] | None = None,
     load_cache_if_exists: bool = True,
     num_time_steps=100,
-    max_seed=10,
+    max_seed=30,
     experiment_filter=None,
 ):
     result_file = (Path(path) / "results-cache.dill").expanduser()
@@ -402,7 +422,7 @@ def plot_average_normalized_regret(
     plt.xlabel("% Budget Used")
     ax.set_ylabel("Average normalized regret")
     plt.xlim(0, 1)
-    plt.ylim(6e-3, None)
+    plt.ylim(6e-4, 1e-1)
     plt.grid()
     plt.title(title)
     plt.legend(loc="upper right")
@@ -462,7 +482,7 @@ if __name__ == "__main__":
     print(args.__dict__)
     assert Path(args.path).exists()
     max_seed = args.max_seed
-    num_time_steps = 50
+    num_time_steps = 100
 
     with catchtime("load benchmark results"):
         benchmark_results = load_and_cache(
@@ -503,6 +523,8 @@ if __name__ == "__main__":
                         methods_to_show=methods,
                         rename_dict=rename_dict,
                         result_folder=result_folder,
+                        y_log_scale=True,  # toggle as needed
+                        y_limits=(0.01, 250),  # or None to auto-scale
                     )
 
                 plot_average_normalized_regret(

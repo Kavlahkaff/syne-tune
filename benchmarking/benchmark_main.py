@@ -142,7 +142,7 @@ if __name__ == "__main__":
         "--n_workers",
         help="number of workers to use when tuning.",
         type=int,
-        default=4,
+        default=1,
     )
 
     args, _ = parser.parse_known_args()

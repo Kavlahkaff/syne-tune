@@ -321,6 +321,7 @@ class BlackboxRepositoryBackend(_BlackboxSimulatorBackend):
             self._blackbox = load_blackbox(
                 self.blackbox_name,
                 yahpo_kwargs=self._surrogate_kwargs,
+                local_files_only=True,
             )
             if self.dataset is None:
                 assert not isinstance(self._blackbox, dict), (

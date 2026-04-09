@@ -92,6 +92,7 @@ class BoundingBox(TransferLearningMixin, SingleObjectiveScheduler):
             do_minimize=do_minimize,
             num_hyperparameters_per_task=num_hyperparameters_per_task,
         )
+
         print(f"hyperparameter ranges of best previous configurations {config_space}")
         print(f"({config_space_size(config_space)} options)")
         self.scheduler = scheduler_fun(config_space, metric, do_minimize, random_seed)
@@ -134,6 +135,7 @@ class BoundingBox(TransferLearningMixin, SingleObjectiveScheduler):
         logger.info(
             f"new configuration space obtained after computing bounding-box: {new_config_space}"
         )
+        print(new_config_space)
 
         return new_config_space
 

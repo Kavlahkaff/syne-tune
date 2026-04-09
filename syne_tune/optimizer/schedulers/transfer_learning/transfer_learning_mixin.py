@@ -21,7 +21,8 @@ class TransferLearningMixin:
         :param metric_names: name of the metric to be optimized.
         """
         super().__init__(
-            config_space=config_space, random_seed=random_seed, metric=metric
+            config_space=config_space, random_seed=random_seed, metric=metric,
+            **kwargs
         )
         self.metric = metric
         self._check_consistency(

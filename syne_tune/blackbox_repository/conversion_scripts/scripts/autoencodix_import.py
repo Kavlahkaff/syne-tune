@@ -31,7 +31,7 @@ ONTOLOGY_ARCHITECTURES = {"ontix"}
 _SHARED_HPS = {
     "k_filter": choice([128, 256, 512, 1024, 2048, 4096]),
     "n_layers": choice([2, 3, 4]),
-    "enc_factor": uniform(1, 4),
+    "enc_factor": choice([1,2,3, 4]),
     "batch_size": choice([32, 64, 128, 256]),
     "learning_rate": loguniform(1e-5, 1e-1),
     "drop_p": uniform(0, 0.9),
@@ -140,33 +140,38 @@ def _hp_key(hp_row: dict) -> tuple:
 def _build_arch_index(
     all_runs: list[dict], hp_keys: list[str]
 ) -> tuple[pd.DataFrame, dict[tuple, int], list[int], int]:
-    """
-    Single pass over all runs for one architecture to build:
-      - union_hp_df : deduplicated HP DataFrame
-      - hp_index    : hp_key → row index
-      - seed_list   : sorted unique seeds
-    """
-    seen: dict[tuple, dict] = {}
-    hp_order: list[tuple] = []
-    seeds: set[int] = set()
     max_epochs = 300
+
+    # Track which configs each seed ran, globally across all tasks
+    seed_configs: dict[int, set[tuple]] = {}
+    hp_rows: dict[tuple, dict] = {}
 
     for record in all_runs:
         hp_row = _extract_hps(record, hp_keys)
-        key = _hp_key(hp_row)
-        if key not in seen:
-            seen[key] = hp_row
-            hp_order.append(key)
-        seeds.add(record["SEED"])
+        key    = _hp_key(hp_row)
+        seed_configs.setdefault(record["SEED"], set()).add(key)
+        if key not in hp_rows:
+            hp_rows[key] = hp_row
 
-    union_hp_df = pd.DataFrame([seen[k] for k in hp_order]).reset_index(drop=True)
+    all_seeds      = sorted(seed_configs)
+    shared_configs = set.intersection(*(seed_configs[s] for s in all_seeds))
+
+    n_union  = len(set.union(*(seed_configs[s] for s in all_seeds)))
+    n_shared = len(shared_configs)
+    print(
+        "Global HP intersection: keeping %d / %d configs present in all seeds.",
+        n_shared, n_union,
+    )
+
+    hp_order    = [k for k in hp_rows if k in shared_configs]
+    union_hp_df = pd.DataFrame([hp_rows[k] for k in hp_order]).reset_index(drop=True)
+
     return (
         union_hp_df,
         {k: i for i, k in enumerate(hp_order)},
-        sorted(seeds),
+        all_seeds,
         max_epochs,
     )
-
 
 def _fill_objectives(
     records: list[dict],
@@ -186,6 +191,7 @@ def _fill_objectives(
     obj_idx = {name: i for i, name in enumerate(OBJECTIVES)}
 
     for record in records:
+
         hp_idx = hp_index[_hp_key(_extract_hps(record, hp_keys))]
         s_idx = seed_to_idx[record["SEED"]]
         loss_dict: dict[str, float] = record["loss_per_epoch"]
@@ -234,31 +240,34 @@ def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
             f"\nArchitecture: {architecture}  ({len(all_runs)} runs, {len(task_records)} tasks)"
         )
 
-        with catchtime("  building union HP index"):
-            union_hp_df, hp_index, seed_list, max_epochs = _build_arch_index(
-                all_runs, hp_keys
-            )
-
-        seed_to_idx = {s: i for i, s in enumerate(seed_list)}
-        num_hps, num_seeds = len(union_hp_df), len(seed_list)
+        # ── build ONE global HP index for all tasks in this architecture ──────
+        global_hp_df, global_hp_index, all_seeds, max_epochs = _build_arch_index(
+            all_runs, hp_keys
+        )
+        seed_to_idx = {s: i for i, s in enumerate(all_seeds)}
+        num_hps = len(global_hp_df)
+        num_seeds = len(all_seeds)
         fidelity_values = np.arange(1, max_epochs + 1)
         fidelity_space = {TIME_ATTR: randint(lower=300, upper=300)}
 
-        print(f"Union HP configs: {num_hps}  |  Seeds: {seed_list} ")
+        print(f"Seeds: {all_seeds}")
+        print(f"Global HP configs: {num_hps}")
 
         bb_dict: dict[str, BlackboxTabular] = {}
         for task_name, records in task_records.items():
             print(f"  Converting {len(records):5d} runs  →  task={task_name}")
+
             with catchtime(f"    filling {task_name}"):
                 obj_array = _fill_objectives(
                     records,
                     hp_keys,
-                    hp_index,
+                    global_hp_index,  # ← same index for every task
                     seed_to_idx,
                     shape=(num_hps, num_seeds, max_epochs),
                 )
+
             bb_dict[task_name] = BlackboxTabular(
-                hyperparameters=union_hp_df.copy(),
+                hyperparameters=global_hp_df,  # ← same DataFrame for every task
                 configuration_space=config_space,
                 fidelity_space=fidelity_space,
                 objectives_evaluations=obj_array,

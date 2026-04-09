@@ -115,7 +115,12 @@ benchmark_definitions = {
 
 
 
-autoencodix_search_spaces = ["vanillix", "varix", "ontix", "disentanglix"]
+autoencodix_search_spaces = [
+    "vanillix",
+    "varix",
+    "ontix",
+    "disentanglix"
+    ]
 
 autoencodix_tasks = [
     "schc_RNA_METH_CLIN",
