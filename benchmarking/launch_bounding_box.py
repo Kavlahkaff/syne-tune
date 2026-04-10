@@ -133,7 +133,7 @@ def run(
         metadata={
             "seed": random_seed,
             "algorithm": "bounding_box_" + args.searcher,
-            "benchmark": architecture + "-" + test_task,
+            "benchmark": architecture + "_" + test_task,
         },
     )
 

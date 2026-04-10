@@ -195,7 +195,7 @@ def _fill_objectives(
         hp_idx = hp_index[_hp_key(_extract_hps(record, hp_keys))]
         s_idx = seed_to_idx[record["SEED"]]
         loss_dict: dict[str, float] = record["loss_per_epoch"]
-        final = len(loss_dict) - 1
+        final = max(int(k) for k in loss_dict)
 
         for epoch_str, recon_loss in sorted(
             loss_dict.items(), key=lambda kv: int(kv[0])
@@ -247,8 +247,7 @@ def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
         seed_to_idx = {s: i for i, s in enumerate(all_seeds)}
         num_hps = len(global_hp_df)
         num_seeds = len(all_seeds)
-        fidelity_values = np.arange(1, max_epochs + 1)
-        fidelity_space = {TIME_ATTR: randint(lower=300, upper=300)}
+        fidelity_space = {TIME_ATTR: randint(lower=1, upper=300)}
 
         print(f"Seeds: {all_seeds}")
         print(f"Global HP configs: {num_hps}")
@@ -271,7 +270,6 @@ def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
                 configuration_space=config_space,
                 fidelity_space=fidelity_space,
                 objectives_evaluations=obj_array,
-                fidelity_values=fidelity_values,
                 objectives_names=OBJECTIVES,
             )
 

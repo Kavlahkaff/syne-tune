@@ -133,32 +133,32 @@ def run(
         metadata={
             "seed": random_seed,
             "algorithm": "quantile_transfer",
-            "benchmark": architecture + "-" + test_task,
+            "benchmark": architecture + "_" + test_task,
         },
     )
 
     tuner.run()
 
     # ── Final report ──────────────────────────────────────────────────────────
-    print(f"\n{'='*60}")
-    print("Overall best result (quantile-based surrogate transfer)")
-    print(f"Architecture  : {architecture}")
-    print(f"Test task     : {test_task}")
-    print(f"Metric        : {metric}  ({'min' if do_minimize else 'max'})")
-    print(f"Normalization : {normalization}")
-    if extra_architectures:
-        print(f"Extra sources : {extra_architectures}")
-    print(f"{'='*60}")
+    #print(f"\n{'='*60}")
+    #print("Overall best result (quantile-based surrogate transfer)")
+    #print(f"Architecture  : {architecture}")
+    #print(f"Test task     : {test_task}")
+    #print(f"Metric        : {metric}  ({'min' if do_minimize else 'max'})")
+    #print(f"Normalization : {normalization}")
+    #if extra_architectures:
+    #    print(f"Extra sources : {extra_architectures}")
+    #print(f"{'='*60}")
 
-    best_experiment = load_experiment(tuner.name)
-    best_config     = best_experiment.best_config()
-    target_cs       = bb_dict[test_task].configuration_space
-    print("\n".join(
-        f"  {k}: {v}" for k, v in best_config.items()
-        if k in target_cs
-    ))
+    #best_experiment = load_experiment(tuner.name)
+    #best_config     = best_experiment.best_config()
+    #target_cs       = bb_dict[test_task].configuration_space
+    #print("\n".join(
+    #    f"  {k}: {v}" for k, v in best_config.items()
+    #    if k in target_cs
+    #))
 
-    best_experiment.plot()
+    #best_experiment.plot()
 
 
 def parse_args() -> argparse.Namespace:

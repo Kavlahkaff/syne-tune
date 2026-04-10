@@ -229,6 +229,31 @@ def load_transfer_learning_evaluations(
             last_epoch = np.where(nan_mask[:, :, None, None], fallback, last_epoch)
 
         hp_df = _sanitize_hyperparameters(bb.hyperparameters)
+        # Identify configs that are NaN across ALL seeds and ALL epochs
+        # single_obj shape: (H, S, E, 1)
+
+        invalid_config_mask = np.all(np.isnan(single_obj), axis=(1, 2, 3))  # (H,)
+
+        num_invalid = invalid_config_mask.sum()
+
+        if num_invalid > 0:
+            logger.warning(
+                "Task '%s': %d completely invalid hyperparameter configs detected",
+                task_key,
+                num_invalid,
+            )
+
+            # Extract the failing configs
+            failed_configs = hp_df.loc[invalid_config_mask].copy()
+
+            # Add index for traceability
+            failed_configs["config_index"] = failed_configs.index
+
+            # Optional: sort for readability
+            failed_configs = failed_configs.sort_index()
+
+            print(f"\n=== Failed configs for task: {task_key} ===")
+            print(failed_configs.head(20))  # preview
 
         # ── Cross-architecture: project to shared hyperparameters ─────────────
         if not same_arch:
