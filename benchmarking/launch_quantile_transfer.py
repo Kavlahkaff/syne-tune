@@ -18,31 +18,39 @@ from utils import load_transfer_learning_evaluations, METRIC_MODE, METRIC_DOWNST
 import numpy as np
 logger = logging.getLogger(__name__)
 
-def make_tuner_name(args) -> str:
+def make_tuner_name(
+    architecture: str,
+    test_task: str,
+    metric: str,
+    all_datasets: bool,
+    cross_arch_only: bool,
+    extra_architectures: list[str] | None,
+    seed: int,
+) -> str:
     # --- metric abbreviation ---
     metric_short = {
         METRIC_DOWNSTREAM:   "ds",
         METRIC_RECON_LOSS:   "rl",
         METRIC_ELAPSED_TIME: "et",
-    }.get(args.metric, args.metric[:4])
+    }.get(metric, metric[:4])
 
     # --- extra-architectures suffix (sorted for stability) ---
-    extra = "+".join(sorted(args.extra_architectures)) if args.extra_architectures else "none"
+    extra = "+".join(sorted(extra_architectures)) if extra_architectures else "none"
 
     # --- boolean flags as compact bits ---
     flags = "".join([
-        "A" if args.all_datasets    else "a",   # All-datasets on/off
-        "X" if args.cross_arch_only else "x",   # Cross-arch-only on/off
+        "A" if all_datasets    else "a",   # All-datasets on/off
+        "X" if cross_arch_only else "x",   # Cross-arch-only on/off
     ])
 
     tuner_name = (
-        f"ZeroShot"
-        f"-{args.architecture}"          # target architecture
-        f"-{args.test_task}"             # held-out task
+        f"QuantileTransfer"
+        f"-{architecture}"          # target architecture
+        f"-{test_task}"             # held-out task
         f"-{metric_short}"               # optimisation metric
         f"-{flags}"                      # three boolean switches
         f"-x{extra}"                     # extra source architectures
-        f"-r{args.seed}"                 # random seed
+        f"-r{seed}"                 # random seed
     )
     return tuner_name
 
@@ -61,7 +69,7 @@ def run(
     extra_architectures: list[str] | None = None,
     cross_arch_only: bool = False,
 ) -> None:
-    np.random.seed(args.seed)
+    np.random.seed(random_seed)
     blackbox_name = f"autoencodix_{architecture}"
     bb_dict = load_blackbox(blackbox_name, local_files_only=True)
     available_tasks = sorted(bb_dict)
@@ -120,7 +128,15 @@ def run(
         surrogate="KNeighborsRegressor",
         surrogate_kwargs={"n_neighbors": 1},
     )
-    name = make_tuner_name(args)
+    name = make_tuner_name(
+        architecture=architecture,
+        test_task=test_task,
+        metric=metric,
+        all_datasets=not same_dataset_only,
+        cross_arch_only=cross_arch_only,
+        extra_architectures=extra_architectures,
+        seed=random_seed,
+    )
     tuner = Tuner(
         tuner_name=name,
         suffix_tuner_name=False,

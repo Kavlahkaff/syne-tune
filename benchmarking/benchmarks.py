@@ -95,12 +95,12 @@ def hpob_benchmark(blackbox_name: str, dataset_name: str):
 
 def autoencodix_benchmark(blackbox_name: str, dataset_name: str):
     return BenchmarkDefinition(
-        max_wallclock_time=100000,
-        max_num_evaluations=300*n_full_evals,
+        max_wallclock_time=72000,
+        #max_num_evaluations=300*n_full_evals,
         n_workers=4,
         elapsed_time_attr="metric_elapsed_time",
-        metric="metric_valid_recon_loss",
-        mode="min",
+        metric="metric_avg_ml_task_performance",
+        mode="max",
         blackbox_name=blackbox_name,
         dataset_name=dataset_name,
         surrogate="KNeighborsRegressor",
@@ -116,10 +116,14 @@ benchmark_definitions = {
 
 
 autoencodix_search_spaces = [
-    "vanillix",
-    "varix",
-    "ontix",
-    "disentanglix"
+    #"vanillix_tcga",
+    "varix_tcga",
+    "ontix_tcga",
+    "disentanglix_tcga",
+    #"vanillix_schc",
+    "varix_schc",
+    "ontix_schc",
+    "disentanglix_schc",
     ]
 
 autoencodix_tasks = [

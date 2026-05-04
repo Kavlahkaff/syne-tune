@@ -46,10 +46,15 @@ from syne_tune.blackbox_repository.conversion_scripts.scripts.pd1_import import 
 )
 
 from syne_tune.blackbox_repository.conversion_scripts.scripts.autoencodix_import import (
-    AutoEncodixVanillixJsonRecipe,
-    AutoEncodixVarixJsonRecipe,
-    AutoEncodixDisentanglixJsonRecipe,
-    AutoEncodixOntixJsonRecipe
+#    AutoEncodixVanillixTcgaJsonRecipe,
+#    AutoEncodixVanillixSchcJsonRecipe,
+    AutoEncodixVarixTcgaJsonRecipe,
+    AutoEncodixVarixSchcJsonRecipe,
+    AutoEncodixOntixTcgaJsonRecipe,
+    AutoEncodixOntixSchcJsonRecipe,
+    AutoEncodixDisentanglixTcgaJsonRecipe,
+    AutoEncodixDisentanglixSchcJsonRecipe,
+
 )
 
 # add a blackbox recipe here to expose it in Syne Tune
@@ -84,10 +89,14 @@ recipes = [
     TabrepoNeuralNetTorch(),
     TabrepoLightGBM(),
     TabrepoRecipeKNeighbors(),
-    AutoEncodixVanillixJsonRecipe(),
-    AutoEncodixVarixJsonRecipe(),
-    AutoEncodixDisentanglixJsonRecipe(),
-    AutoEncodixOntixJsonRecipe(),
+#    AutoEncodixVanillixTcgaJsonRecipe(),
+#    AutoEncodixVanillixSchcJsonRecipe(),
+    AutoEncodixVarixTcgaJsonRecipe(),
+    AutoEncodixVarixSchcJsonRecipe(),
+    AutoEncodixOntixTcgaJsonRecipe(),
+    AutoEncodixOntixSchcJsonRecipe(),
+    AutoEncodixDisentanglixTcgaJsonRecipe(),
+    AutoEncodixDisentanglixSchcJsonRecipe(),
 ]
 
 try:
