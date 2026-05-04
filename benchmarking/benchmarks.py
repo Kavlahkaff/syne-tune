@@ -144,7 +144,7 @@ autoencodix_tcga_tasks = [
 
 for task in autoencodix_schc_tasks:
     for search_space in autoencodix_schc_search_spaces:
-        if search_space == "ontix":
+        if "ontix" in search_space:
             for ontology in ["reactome", "chromosome"]:
                 benchmark_definitions[
                     f"autoencodix-{search_space}-"
@@ -165,7 +165,7 @@ for task in autoencodix_schc_tasks:
 
 for task in autoencodix_tcga_tasks:
     for search_space in autoencodix_tcga_search_spaces:
-        if search_space == "ontix":
+        if "ontix" in search_space:
             for ontology in ["reactome", "chromosome"]:
                 benchmark_definitions[
                     f"autoencodix-{search_space}-"
