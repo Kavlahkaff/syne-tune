@@ -1,6 +1,7 @@
 import subprocess
 import os
 import time
+import itertools
 
 # Use explicit sys.path modification to import definitions safely without running the files
 import sys
@@ -26,13 +27,20 @@ def generate_commands():
     commands = []
 
     # 2. Transfer Learning methods
-    all_architectures = ["varix", "ontix", "disentanglix"]
+    all_architectures = ["varix", "ontix", "disentanglix",
+                         #"vanillix"
+                         ]
     for bench in benchmarks:
         # benchmark name format: autoencodix-varix_schc-schc-RNA-METH-CLIN
         parts = bench.split("-")
         target_arch = parts[1].split("_")[0] # e.g. "varix"
         
-        extra_archs = " ".join([a for a in all_architectures if a != target_arch])
+        other_archs = [a for a in all_architectures if a != target_arch]
+        
+        # Generate all permutations (combinations of any length) of other architectures
+        arch_combinations = []
+        for r in range(1, len(other_archs) + 1):
+            arch_combinations.extend(itertools.combinations(other_archs, r))
         
         for method in t_methods:
             for seed in seeds:
@@ -44,9 +52,11 @@ def generate_commands():
                 # Setup 2: Cross-Dataset (All Datasets, Same Architecture)
                 commands.append(f"{base_cmd} --all_datasets")
                 
-                # Setup 3: Cross-Architecture (All Datasets, All Architectures)
+                # Setup 3: Cross-Architecture (All Datasets, All permutations of Extra Architectures)
                 # To compare architecture transfer capabilities properly.
-                commands.append(f"{base_cmd} --all_datasets --extra_architectures {extra_archs}")
+                for combo in arch_combinations:
+                    extra_archs_str = " ".join(combo)
+                    commands.append(f"{base_cmd} --all_datasets --extra_architectures {extra_archs_str}")
                 
     with open(COMMANDS_FILE, "w") as f:
         for cmd in commands:

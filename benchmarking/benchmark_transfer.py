@@ -34,8 +34,8 @@ def run(
     method_names,
     benchmark_names,
     seeds,
-    max_num_evaluations=None,
-    n_workers: int = 4,
+    max_num_trials_completed=100,
+    n_workers: int = 1,
     all_datasets: bool = False,
     cross_arch_only: bool = False,
     extra_architectures: list = None,
@@ -164,9 +164,9 @@ def run(
 
         stop_criterion = StoppingCriterion(
             max_wallclock_time=benchmark.max_wallclock_time,
-            max_num_evaluations=max_num_evaluations
-            if max_num_evaluations
-            else benchmark.max_num_evaluations,
+            #max_num_trials_completed=max_num_trials_completed
+            #if max_num_trials_completed
+            #else benchmark.max_num_trials_completed,
         )
         
         # Determine flags for naming
