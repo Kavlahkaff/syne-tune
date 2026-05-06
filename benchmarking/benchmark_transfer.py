@@ -60,19 +60,38 @@ def run(
 
         print(f"Starting experiment ({method}/{benchmark_name}/{seed})")
 
-        architecture = benchmark.blackbox_name.split("autoencodix_")[1] if "autoencodix" in benchmark.blackbox_name else benchmark.blackbox_name
+        if "autoencodix" in benchmark.blackbox_name:
+            parts = benchmark.blackbox_name.split("_")
+            target_arch = parts[1]
+            test_dataset = parts[2]
+        else:
+            target_arch = benchmark.blackbox_name
+            test_dataset = ""
+            
         test_task = benchmark.dataset_name
         metric = benchmark.metric
         do_minimize = METRIC_MODE.get(metric, True)
 
         bb_dict = load_blackbox(benchmark.blackbox_name, local_files_only=True)
         
+        all_datasets_list = ["tcga", "schc"] if all_datasets else [test_dataset]
         extra_bb_dicts = {}
+        
+        # 1. Add other dataset for the SAME architecture
+        if all_datasets and "autoencodix" in benchmark.blackbox_name:
+            other_ds = "tcga" if test_dataset == "schc" else "schc"
+            arch_label = f"{target_arch}_{other_ds}"
+            arch_bb_name = f"autoencodix_{target_arch}_{other_ds}"
+            extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
+            
+        # 2. Add extra architectures
         for arch in extra_architectures:
-            if arch == architecture:
+            if arch == target_arch:
                 continue
-            arch_bb_name = f"autoencodix_{arch}" if "autoencodix" in benchmark.blackbox_name else arch
-            extra_bb_dicts[arch] = load_blackbox(arch_bb_name, local_files_only=True)
+            for ds in all_datasets_list:
+                arch_label = f"{arch}_{ds}"
+                arch_bb_name = f"autoencodix_{arch}_{ds}" if "autoencodix" in benchmark.blackbox_name else arch
+                extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
 
         transfer_learning_evaluations = load_transfer_learning_evaluations(
             blackbox_name=benchmark.blackbox_name,
@@ -162,7 +181,7 @@ def run(
         extra_str = "+".join(sorted(extra_architectures)) if extra_architectures else "none"
         metric_short = {"metric_avg_ml_task_performance": "ds", "metric_valid_recon_loss": "rl", "metric_elapsed_time": "et"}.get(metric, metric[:4])
         
-        tuner_name = f"results/{method}-{architecture}-{test_task}-{metric_short}-{flags}-x{extra_str}-r{seed}"
+        tuner_name = f"results/{method}-{target_arch}-{test_task}-{metric_short}-{flags}-x{extra_str}-r{seed}"
         
         tuner = Tuner(
             trial_backend=backend,

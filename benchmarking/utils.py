@@ -166,6 +166,11 @@ def load_transfer_learning_evaluations(
     if bb_dict is None:
         bb_dict = load_blackbox(blackbox_name)
 
+    if "autoencodix" in blackbox_name:
+        target_arch = blackbox_name.split("_")[1]
+    else:
+        target_arch = blackbox_name
+
     # Target config space — used to project cross-architecture sources
     target_config_space = bb_dict[test_task].configuration_space
 
@@ -190,8 +195,14 @@ def load_transfer_learning_evaluations(
         logger.info("cross_arch_only=True: skipping all same-architecture source tasks.")
     if extra_bb_dicts:
         for arch_label, ext_bb in extra_bb_dicts.items():
+            arch_name = arch_label.split("_")[0]
+            is_same_arch = (arch_name == target_arch)
+
+            if cross_arch_only and is_same_arch:
+                continue
+
             for task, bb in ext_bb.items():
-                source_candidates.append((f"{arch_label}/{task}", bb, False))
+                source_candidates.append((f"{arch_label}/{task}", bb, is_same_arch))
 
     transfer_evals: dict[str, TransferLearningTaskEvaluations] = {}
     test_dataset = test_task.split("_")[0]

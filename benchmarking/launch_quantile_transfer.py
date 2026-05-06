@@ -70,7 +70,9 @@ def run(
     cross_arch_only: bool = False,
 ) -> None:
     np.random.seed(random_seed)
-    blackbox_name = f"autoencodix_{architecture}"
+    test_dataset = test_task.split("_")[0].lower()
+    blackbox_name = f"autoencodix_{architecture}_{test_dataset}"
+
     bb_dict = load_blackbox(blackbox_name, local_files_only=True)
     available_tasks = sorted(bb_dict)
     logger.info("Blackbox '%s' — tasks: %s", blackbox_name, available_tasks)
@@ -80,17 +82,27 @@ def run(
             f"test_task='{test_task}' not found. Available: {available_tasks}"
         )
 
-    # Load extra-architecture blackboxes once before the cycle loop
+    all_datasets_list = ["tcga", "schc"] if not same_dataset_only else [test_dataset]
     extra_bb_dicts: dict[str, dict[str, BlackboxTabular]] = {}
+    
+    if not same_dataset_only:
+        other_ds = "tcga" if test_dataset == "schc" else "schc"
+        arch_label = f"{architecture}_{other_ds}"
+        arch_bb_name = f"autoencodix_{architecture}_{other_ds}"
+        logger.info("Loading extra-dataset blackbox '%s' …", arch_bb_name)
+        extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
+
     for arch in (extra_architectures or []):
         if arch == architecture:
             logger.warning(
                 "--extra-architecture '%s' is the same as the target; skipping.", arch
             )
             continue
-        arch_bb_name = f"autoencodix_{arch}"
-        logger.info("Loading extra-architecture blackbox '%s' …", arch_bb_name)
-        extra_bb_dicts[arch] = load_blackbox(arch_bb_name, local_files_only=True)
+        for ds in all_datasets_list:
+            arch_label = f"{arch}_{ds}"
+            arch_bb_name = f"autoencodix_{arch}_{ds}"
+            logger.info("Loading extra-architecture blackbox '%s' …", arch_bb_name)
+            extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
 
 
     transfer_learning_evaluations = load_transfer_learning_evaluations(
@@ -261,7 +273,7 @@ if __name__ == "__main__":
     )
 
     if args.test_task is None:
-        _bb = load_blackbox(f"autoencodix_{args.architecture}")
+        _bb = load_blackbox(f"autoencodix_{args.architecture}_tcga", local_files_only=True)
         args.test_task = sorted(_bb)[0]
         print(f"No --test-task given, defaulting to '{args.test_task}'")
 
