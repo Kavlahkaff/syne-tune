@@ -46,8 +46,8 @@ from syne_tune.blackbox_repository.conversion_scripts.scripts.pd1_import import 
 )
 
 from syne_tune.blackbox_repository.conversion_scripts.scripts.autoencodix_import import (
-#    AutoEncodixVanillixTcgaJsonRecipe,
-#    AutoEncodixVanillixSchcJsonRecipe,
+    AutoEncodixVanillixTcgaJsonRecipe,
+    AutoEncodixVanillixSchcJsonRecipe,
     AutoEncodixVarixTcgaJsonRecipe,
     AutoEncodixVarixSchcJsonRecipe,
     AutoEncodixOntixTcgaJsonRecipe,
@@ -89,8 +89,8 @@ recipes = [
     TabrepoNeuralNetTorch(),
     TabrepoLightGBM(),
     TabrepoRecipeKNeighbors(),
-#    AutoEncodixVanillixTcgaJsonRecipe(),
-#    AutoEncodixVanillixSchcJsonRecipe(),
+    AutoEncodixVanillixTcgaJsonRecipe(),
+    AutoEncodixVanillixSchcJsonRecipe(),
     AutoEncodixVarixTcgaJsonRecipe(),
     AutoEncodixVarixSchcJsonRecipe(),
     AutoEncodixOntixTcgaJsonRecipe(),

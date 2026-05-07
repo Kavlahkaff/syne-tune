@@ -434,8 +434,8 @@ def _make_recipe(class_name: str, architecture: str, dataset: str):
     )
 
 
-#AutoEncodixVanillixTcgaJsonRecipe     = _make_recipe("AutoEncodixVanillixTcgaJsonRecipe",     "vanillix",      "tcga")
-#AutoEncodixVanillixSchcJsonRecipe     = _make_recipe("AutoEncodixVanillixSchcJsonRecipe",     "vanillix",      "schc")
+AutoEncodixVanillixTcgaJsonRecipe     = _make_recipe("AutoEncodixVanillixTcgaJsonRecipe",     "vanillix",      "tcga")
+AutoEncodixVanillixSchcJsonRecipe     = _make_recipe("AutoEncodixVanillixSchcJsonRecipe",     "vanillix",      "schc")
 AutoEncodixVarixTcgaJsonRecipe        = _make_recipe("AutoEncodixVarixTcgaJsonRecipe",        "varix",         "tcga")
 AutoEncodixVarixSchcJsonRecipe        = _make_recipe("AutoEncodixVarixSchcJsonRecipe",        "varix",         "schc")
 AutoEncodixOntixTcgaJsonRecipe        = _make_recipe("AutoEncodixOntixTcgaJsonRecipe",        "ontix",         "tcga")

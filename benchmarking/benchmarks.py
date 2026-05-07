@@ -116,14 +116,14 @@ benchmark_definitions = {
 
 
 autoencodix_schc_search_spaces = [
-    #"vanillix_schc",
+    "vanillix_schc",
     "varix_schc",
     "ontix_schc",
     "disentanglix_schc",
     ]
 
 autoencodix_tcga_search_spaces = [
-    #"vanillix_tcga",
+    "vanillix_tcga",
     "varix_tcga",
     "ontix_tcga",
     "disentanglix_tcga",
