@@ -49,7 +49,7 @@ def convert_to_numpy(benchmark_df, num_time_steps: int = 20):
     return t_range, seed_results
 
 
-def compute_best(dfs, metadatas):
+def compute_best(dfs, metadatas, mode=None):
     benchmark_dfs = defaultdict(list)
     for df_bench, metadata in tqdm(list(zip(dfs, metadatas.values()))):
         if df_bench is None:
@@ -58,13 +58,18 @@ def compute_best(dfs, metadatas):
         metric_name = metadata["metric_names"][0]
         for key in ["algorithm", "seed"]:
             df_bench[key] = metadata[key]
-        # TODO this avoids the need to rely on the mode stored in the metadata but hardcode the benchmark mode,
-        #  we should pass it instead
-        if "lcbench" in benchmark or "nas301" in benchmark:
-            mode = "max"
+        
+        if mode is None:
+            # TODO this avoids the need to rely on the mode stored in the metadata but hardcode the benchmark mode,
+            #  we should pass it instead
+            if "lcbench" in benchmark or "nas301" in benchmark:
+                current_mode = "max"
+            else:
+                current_mode = "min"
         else:
-            mode = "min"
-        if mode == "min":
+            current_mode = mode
+            
+        if current_mode == "min":
             df_bench["best"] = df_bench[metric_name].cummin()
         else:
             df_bench["best"] = df_bench[metric_name].cummax()
@@ -137,7 +142,9 @@ def get_metadata(root: Path):
         with open(metadata_path, "r") as f:
             folder = metadata_path.parent.name
             try:
-                metadatas[folder] = json.load(f)
+                metadata = json.load(f)
+                metadata["tuner_name"] = folder
+                metadatas[folder] = metadata
             except JSONDecodeError as e:
                 print(metadata_path)
                 raise e
@@ -152,6 +159,7 @@ def load_benchmark_results(
     max_seed: int = None,
     experiment_filter=None,
     engine: str = "joblib",
+    mode: str = None,
 ) -> dict[str, tuple[np.array, dict[str, np.array]]]:
     """
     :param path: where results are stored
@@ -160,12 +168,16 @@ def load_benchmark_results(
     :param max_seed: maximum seed to load, default to None to load all seeds
     :param experiment_filter:
     :param engine: parallel engine to use, can be ["sequential", "ray", "joblib", "futures"]
+    :param mode: "min" or "max"
     :return:
     """
     path = Path(path)
 
     with catchtime("Load metadata"):
         metadatas = get_metadata(root=path)
+
+    if experiment_filter:
+        metadatas = {k: v for k, v in metadatas.items() if experiment_filter(v)}
 
     # todo strict metadata filtering as the one above may fail
     methods = set(methods) if methods is not None else None
@@ -175,8 +187,6 @@ def load_benchmark_results(
         if (max_seed is None or v["seed"] < max_seed)
         and (methods is None or v["algorithm"] in methods)
     }
-    if experiment_filter:
-        metadatas = {k: v for k, v in metadatas.items() if experiment_filter(v)}
     print(f"loaded {len(metadatas)} experiment metadata")
     # metadatas = {k: v for k, v in metadatas.items() if "yahpo" not in v["benchmark"]}
 
@@ -189,7 +199,7 @@ def load_benchmark_results(
             engine=engine,
         )
     with catchtime("Compute best result over time"):
-        benchmark_dfs = compute_best(dfs, metadatas)
+        benchmark_dfs = compute_best(dfs, metadatas, mode=mode)
 
     show_number_seeds(benchmark_dfs)
 
