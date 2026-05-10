@@ -102,7 +102,7 @@ ARCHITECTURE_CONFIG_SPACES = {
     },
 }
 
-RESULTS_ROOT = Path("/Users/lucathale-bombien/autoencodix_results")
+RESULTS_ROOT = Path("./autoencodix_results")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

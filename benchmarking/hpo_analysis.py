@@ -710,7 +710,7 @@ def plot_downstream_per_dataset(df: pd.DataFrame, out_dir: Path) -> None:
         ax.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM], fontsize=10)
         ax.set_title(
             f"{dset.upper()} — downstream performance by architecture\n"
-            "(wide violin → high HPO value for this dataset)",
+            "(higher is better)",
             fontsize=10,
         )
         fig.tight_layout()
@@ -1191,15 +1191,128 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out_dir", type=Path, default=Path("./hpo-figures"),
                    help="Output directory (default: ./hpo-figures).")
     p.add_argument(
-        "--skip", nargs="*", default=[],
+        "--skip", nargs="*", default=["proxy", "importance", "downstream_per_dataset", "recon_loss_per_dataset",
+                 "importance_per_objective", "random_cost", "landscape",
+                 "transfer", "metric_corr", "beta_tradeoff"],
         choices=["proxy", "importance", "downstream_per_dataset", "recon_loss_per_dataset",
                  "importance_per_objective", "random_cost", "landscape",
-                 "transfer", "metric_corr"],
+                 "transfer", "metric_corr", "hp_distributions", "beta_tradeoff"],
         help="Skip specific figure groups.",
     )
     p.add_argument("--cache", type=Path, default=None,
                    help="Parquet cache path. Loaded if it exists, written otherwise.")
     return p
+
+# ── Figure 4.8 — Hyperparameter Distributions (new) ───────────────────────────
+
+def plot_hp_distributions(df: pd.DataFrame, out_dir: Path) -> None:
+    """
+    For each architecture, plot the distribution of evaluated hyperparameter values.
+    This helps visualize how evenly the HP space was explored and identifies the ranges.
+    """
+    archs = sorted(df["architecture"].unique())
+    
+    shared_hps = {
+        "k_filter": ("choice", [128, 256, 512, 1024, 2048, 4096]),
+        "n_layers": ("choice", [2, 3, 4]),
+        "enc_factor": ("choice", [1, 2, 3, 4]),
+        "batch_size": ("choice", [32, 64, 128, 256]),
+        "learning_rate": ("loguniform", 1e-5, 1e-1),
+        "drop_p": ("uniform", 0.0, 0.9),
+        "weight_decay": ("loguniform", 1e-5, 1e-1),
+    }
+    arch_spaces = {
+        "vanillix": {**shared_hps, "latent_dim": ("choice", [2, 4, 8, 16, 32, 64])},
+        "varix": {**shared_hps, "beta": ("loguniform", 0.001, 10), "latent_dim": ("choice", [2, 4, 8, 16, 32, 64])},
+        "ontix": {**shared_hps, "beta": ("loguniform", 0.0001, 1)},
+        "disentanglix": {
+            **shared_hps,
+            "latent_dim": ("choice", [2, 4, 8, 16, 32, 64]),
+            "beta_mi": ("loguniform", 0.001, 10.0),
+            "beta_tc": ("loguniform", 0.1, 10000),
+            "beta_dimKL": ("loguniform", 0.001, 10.0),
+        },
+    }
+
+    for arch in archs:
+        sub = df[df["architecture"] == arch]
+        hp_cols = _hp_cols_for(arch, sub.columns)
+        hp_cols = [c for c in hp_cols if sub[c].notna().sum() > 0]
+        
+        if not hp_cols:
+            continue
+            
+        ncols = 4
+        nrows = (len(hp_cols) + ncols - 1) // ncols
+        fig, axes = plt.subplots(nrows, ncols, figsize=(3.5 * ncols, 3 * nrows), squeeze=False)
+        
+        space = arch_spaces.get(arch, {})
+        
+        for idx, hp in enumerate(hp_cols):
+            row, col = divmod(idx, ncols)
+            ax = axes[row][col]
+            
+            vals = sub[hp].dropna()
+            if len(vals) == 0:
+                ax.set_visible(False)
+                continue
+                
+            config = space.get(hp)
+            color = ARCH_COLORS.get(arch, "#333333")
+            
+            if config is None:
+                # Fallback for undefined HPs
+                counts, bin_edges = np.histogram(vals, bins=20)
+                ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
+                min_val, max_val = vals.min(), vals.max()
+                ax.set_xlabel(f"Range: [{min_val:.2g}, {max_val:.2g}]", fontsize=9)
+            else:
+                ctype = config[0]
+                
+                if ctype == "choice":
+                    choices = config[1]
+                    counts = vals.value_counts()
+                    for c in choices:
+                        if c not in counts:
+                            counts[c] = 0
+                    
+                    x_pos = np.arange(len(choices))
+                    y_vals = [counts.get(c, 0) / 3.0 for c in choices]
+                    
+                    ax.bar(x_pos, y_vals, color=color, width=0.8)
+                    ax.set_xticks(x_pos)
+                    ax.set_xticklabels([str(c) for c in choices], rotation=45 if len(choices) > 4 else 0, fontsize=8)
+                    ax.set_xlabel(f"Choices: {len(choices)}", fontsize=9)
+                    
+                elif ctype == "loguniform":
+                    lower, upper = config[1], config[2]
+                    # Bins exactly from bounds
+                    bins = np.logspace(np.log10(lower), np.log10(upper), 21)
+                    counts, bin_edges = np.histogram(vals, bins=bins)
+                    ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
+                    ax.set_xscale("log")
+                    ax.set_xlim(lower, upper)
+                    ax.set_xlabel(f"Range: [{lower:.1e}, {upper:.1e}]", fontsize=9)
+                    
+                elif ctype == "uniform":
+                    lower, upper = config[1], config[2]
+                    bins = np.linspace(lower, upper, 21)
+                    counts, bin_edges = np.histogram(vals, bins=bins)
+                    ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
+                    ax.set_xlim(lower, upper)
+                    ax.set_xlabel(f"Range: [{lower:.2g}, {upper:.2g}]", fontsize=9)
+                    
+            ax.set_title(HP_LABELS.get(hp, hp), fontsize=10)
+            ax.set_ylabel("Count", fontsize=9)
+            
+        for idx in range(len(hp_cols), nrows * ncols):
+            row, col = divmod(idx, ncols)
+            axes[row][col].set_visible(False)
+            
+        fig.suptitle(f"Hyperparameter Distributions — {arch.capitalize()}", fontsize=12)
+        fig.tight_layout()
+        _save(fig, out_dir, f"fig4_8_hp_distributions_{arch}.pdf")
+
 
 def plot_disentanglix_beta_vs_downstream(df: pd.DataFrame, out_dir: Path) -> None:
     """
@@ -1350,6 +1463,10 @@ def main() -> None:
     if "beta_tradeoff" not in skip:
         print("─── 4.7  Disentanglix beta trade-off …")
         plot_disentanglix_beta_vs_downstream(df, args.out_dir)
+
+    if "hp_distributions" not in skip:
+        print("─── 4.8  Hyperparameter distributions …")
+        plot_hp_distributions(df, args.out_dir)
 
     print("\n✓ All figures saved to", args.out_dir)
 

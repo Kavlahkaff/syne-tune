@@ -77,8 +77,8 @@ class RegularizedEvolution(SingleObjectiveBaseSearcher):
         self,
         config_space,
         points_to_evaluate: list[dict] | None = None,
-        population_size: int = 100,
-        sample_size: int = 10,
+        population_size: int = 25,
+        sample_size: int = 5,
         random_seed: int = None,
     ):
         super(RegularizedEvolution, self).__init__(

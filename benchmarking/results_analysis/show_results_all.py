@@ -31,34 +31,39 @@ lw = 2.5
 alpha = 0.7
 matplotlib.rcParams.update({"font.size": 15})
 
-def parse_transfer_algorithm_name(metadata):
-    tuner_name = metadata.get("tuner_name", "")
-    alg = metadata.get("algorithm", "")
-    if alg in ["BoundingBox", "QuantileTransfer", "ZeroShot"] and tuner_name:
-        parts = tuner_name.split("-")
-        try:
-            flags = parts[-3]
-            extra_str = parts[-2]
-            
-            if flags.startswith('S'):
-                flags = flags[1:]
+def get_experiment_filter(average_transfer_methods: bool):
+    def parse_transfer_algorithm_name(metadata):
+        tuner_name = metadata.get("tuner_name", "")
+        alg = metadata.get("algorithm", "")
+        if alg in ["BoundingBox", "QuantileTransfer", "ZeroShot"] and tuner_name:
+            if average_transfer_methods:
+                metadata["algorithm"] = alg
+                return True
+            parts = tuner_name.split("-")
+            try:
+                flags = parts[-3]
+                extra_str = parts[-2]
                 
-            all_datasets = 'A' in flags
-            
-            if not all_datasets and extra_str == "xnone":
-                variation = "Modality"
-            elif all_datasets and extra_str == "xnone":
-                variation = "Cross-Dataset"
-            elif all_datasets and extra_str != "xnone":
-                archs_str = extra_str[1:]
-                variation = f"Cross-Arch ({archs_str})"
-            else:
-                variation = f"Transfer ({flags}, {extra_str})"
+                if flags.startswith('S'):
+                    flags = flags[1:]
+                    
+                all_datasets = 'A' in flags
                 
-            metadata["algorithm"] = f"{alg} - {variation}"
-        except IndexError:
-            pass
-    return True
+                if not all_datasets and extra_str == "xnone":
+                    variation = "Modality"
+                elif all_datasets and extra_str == "xnone":
+                    variation = "Cross-Dataset"
+                elif all_datasets and extra_str != "xnone":
+                    archs_str = extra_str[1:]
+                    variation = f"Cross-Arch ({archs_str})"
+                else:
+                    variation = f"Transfer ({flags}, {extra_str})"
+                    
+                metadata["algorithm"] = f"{alg} - {variation}"
+            except IndexError:
+                pass
+        return True
+    return parse_transfer_algorithm_name
 
 def plot_result_benchmark(
     t_range: np.array,
@@ -69,6 +74,7 @@ def plot_result_benchmark(
     methods_to_show: list = None,
     plot_regret: bool = True,
     y_log_scale: bool = False,
+    x_log_scale: bool = False,
     y_limits: tuple[float, float] = None,
     mode: str = "min",
     color_dict: dict = None,
@@ -119,6 +125,8 @@ def plot_result_benchmark(
             agg_results[algorithm] = mean
         if y_log_scale:
             ax.set_yscale("log")
+        if x_log_scale:
+            ax.set_xscale("log")
         if y_limits is not None:
             ax.set_ylim(y_limits[0], y_limits[1])
         ax.set_xlabel("Wallclock time")
@@ -138,6 +146,7 @@ def plot_task_performance_over_time(
     methods_to_show: list = None,
     plot_regret: bool = False,
     y_log_scale: bool = False,
+    x_log_scale: bool = False,
     y_limits: tuple[float, float] = None,
     mode: str = "min",
     color_dict: dict = None,
@@ -161,6 +170,7 @@ def plot_task_performance_over_time(
             rename_dict=rename_dict,
             plot_regret=plot_regret,
             y_log_scale=y_log_scale,
+            x_log_scale=x_log_scale,
             y_limits=y_limits,
             mode=mode,
             color_dict=color_dict,
@@ -173,7 +183,10 @@ def plot_task_performance_over_time(
                 if benchmark in plot_range:
                     plotargs = plot_range[benchmark]
                     ax.set_ylim([plotargs.ymin, plotargs.ymax / 3])
-                    ax.set_xlim([plotargs.xmin, plotargs.xmax])
+                    if x_log_scale and plotargs.xmin <= 0:
+                        ax.set_xlim([max(1e-3, plotargs.xmin), plotargs.xmax])
+                    else:
+                        ax.set_xlim([plotargs.xmin, plotargs.xmax])
 
             plt.tight_layout()
             filepath = result_folder / f"{benchmark}.pdf"
@@ -190,8 +203,10 @@ def load_and_cache(
     max_seed=30,
     experiment_filter=None,
     mode: str = "min",
+    average_transfer_methods: bool = False,
 ):
-    result_file = (Path(path) / f"results-cache-all-{mode}.dill").expanduser()
+    suffix = "-averaged" if average_transfer_methods else ""
+    result_file = (Path(path) / f"results-cache-all-{mode}{suffix}.dill").expanduser()
     if load_cache_if_exists and result_file.exists():
         with catchtime(f"loading results from {result_file}"):
             with open(result_file, "rb") as f:
@@ -252,10 +267,20 @@ def plot_ranks(
     result_folder: Path,
     methods_to_show: list[str],
     color_dict: dict = None,
+    x_log_scale: bool = False,
+    t_range: np.array = None,
 ):
     plt.figure(figsize=(10, 6))
     ys = np.nanmean(ranks.reshape(benchmark_results.shape), axis=(1, 2))
-    xs = np.linspace(0, 1, ys.shape[-1])
+    
+    if t_range is not None:
+        xs = t_range
+    else:
+        if x_log_scale:
+            xs = np.linspace(1/ys.shape[-1], 1, ys.shape[-1])
+        else:
+            xs = np.linspace(0, 1, ys.shape[-1])
+        
     for i, method in enumerate(methods_to_show):
         color = color_dict.get(method) if color_dict else None
         plt.plot(
@@ -266,9 +291,19 @@ def plot_ranks(
             alpha=alpha,
             lw=lw,
         )
-    plt.xlabel("% Budget Used")
+    plt.xlabel("Wallclock time" if t_range is not None else "% Budget Used")
     plt.ylabel("Method rank")
-    plt.xlim(0, 1)
+    if x_log_scale:
+        plt.xscale("log")
+        if t_range is not None:
+            plt.xlim(max(1e-3, xs[0]), xs[-1])
+        else:
+            plt.xlim(1/ys.shape[-1], 1)
+    else:
+        if t_range is not None:
+            plt.xlim(xs[0], xs[-1])
+        else:
+            plt.xlim(0, 1)
     plt.grid()
     plt.title(title)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -282,10 +317,11 @@ def stack_benchmark_results(
     methods_to_show: list[str],
     benchmark_families: list[str],
     mode: str = "min",
-) -> dict[str, np.array]:
+) -> tuple[dict[str, np.array], list[str], dict[str, np.array]]:
     methods_to_keep = list(methods_to_show)
 
     res = {}
+    t_ranges = {}
     for benchmark_family in benchmark_families:
         benchmarks_family = [
             benchmark
@@ -324,16 +360,21 @@ def stack_benchmark_results(
         
         # (num_methods, num_benchmarks, num_min_seeds, num_time_steps)
         res[benchmark_family] = benchmark_results.swapaxes(0, 1)
+        
+        family_t_ranges = [benchmark_results_dict[benchmark][0] for benchmark in benchmarks_family]
+        t_ranges[benchmark_family] = np.mean(family_t_ranges, axis=0)
 
-    return res, methods_to_keep
+    return res, methods_to_keep, t_ranges
 
 
 def generate_rank_results(
     stacked_benchmark_results: dict[str, np.array],
+    stacked_t_ranges: dict[str, np.array],
     methods_to_show: list[str],
     rename_dict: dict,
     result_folder: Path,
     color_dict: dict = None,
+    x_log_scale: bool = False,
 ):
     rows = []
     for benchmark_family, benchmark_results in stacked_benchmark_results.items():
@@ -356,10 +397,15 @@ def generate_rank_results(
             result_folder,
             methods_to_show,
             color_dict=color_dict,
+            x_log_scale=x_log_scale,
+            t_range=stacked_t_ranges[benchmark_family],
         )
 
     all_results = np.concatenate(list(stacked_benchmark_results.values()), axis=1)
     all_ranks = pd.DataFrame(all_results.reshape(len(all_results), -1)).rank()
+    
+    all_t_ranges = np.mean(list(stacked_t_ranges.values()), axis=0) if stacked_t_ranges else None
+    
     plot_ranks(
         all_ranks.values,
         all_results,
@@ -368,11 +414,14 @@ def generate_rank_results(
         result_folder,
         methods_to_show,
         color_dict=color_dict,
+        x_log_scale=x_log_scale,
+        t_range=all_t_ranges,
     )
 
 
 def plot_average_normalized_regret(
     stacked_benchmark_results,
+    stacked_t_ranges,
     rename_dict: dict,
     result_folder: Path,
     title: str = None,
@@ -380,6 +429,7 @@ def plot_average_normalized_regret(
     ax=None,
     methods_to_show: list = None,
     color_dict: dict = None,
+    x_log_scale: bool = False,
 ):
     import warnings
     normalized_regrets = []
@@ -402,6 +452,8 @@ def plot_average_normalized_regret(
     
         avg_regret = np.nanmean(normalized_regrets, axis=(1, 2))
         std_regret = np.nanmean(np.nanstd(normalized_regrets, axis=2), axis=1) if show_ci else None
+        
+        all_t_ranges = np.mean(list(stacked_t_ranges.values()), axis=0) if stacked_t_ranges else None
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -409,8 +461,14 @@ def plot_average_normalized_regret(
         renamed_algorithm = rename_dict.get(algorithm, algorithm)
         mean = avg_regret[i]
         color = color_dict.get(algorithm) if color_dict else None
+        
+        if all_t_ranges is not None:
+            xs = all_t_ranges
+        else:
+            xs = np.arange(1, len(mean) + 1) / len(mean) if x_log_scale else np.arange(len(mean)) / len(mean)
+        
         ax.plot(
-            np.arange(len(mean)) / len(mean),
+            xs,
             mean,
             label=renamed_algorithm,
             color=color,
@@ -420,17 +478,28 @@ def plot_average_normalized_regret(
         if show_ci:
             std = std_regret[i]
             ax.fill_between(
-                np.arange(len(mean)) / len(mean),
+                xs,
                 mean - std,
                 mean + std,
                 color=color,
                 alpha=0.1,
             )
         ax.set_yscale("log")
+        if x_log_scale:
+            ax.set_xscale("log")
 
-    plt.xlabel("% Budget Used")
+    plt.xlabel("Wallclock time" if all_t_ranges is not None else "% Budget Used")
     ax.set_ylabel("Average normalized regret")
-    plt.xlim(0, 1)
+    if x_log_scale:
+        if all_t_ranges is not None:
+            plt.xlim(max(1e-3, xs[0]), xs[-1])
+        else:
+            plt.xlim(1/len(mean) if len(mean) > 0 else 1e-3, 1)
+    else:
+        if all_t_ranges is not None:
+            plt.xlim(xs[0], xs[-1])
+        else:
+            plt.xlim(0, 1)
     # plt.ylim(6e-4, 1e-1)
     plt.grid()
     if title is not None:
@@ -469,6 +538,25 @@ if __name__ == "__main__":
         required=False,
         help="Whether the optimization trajectories represent a maximization problem",
     )
+    parser.add_argument(
+        "--x_log_scale",
+        action="store_true",
+        required=False,
+        help="Whether to make the x-axis log scale",
+    )
+    parser.add_argument(
+        "--average_transfer_methods",
+        action="store_true",
+        required=False,
+        help="Whether to average transfer learning methods (BoundingBox, QuantileTransfer, ZeroShot)",
+    )
+    parser.add_argument(
+        "--methods_to_show",
+        type=str,
+        nargs="+",
+        required=False,
+        help="List of algorithms to include in the plots.",
+    )
 
     args, _ = parser.parse_known_args()
 
@@ -478,6 +566,8 @@ if __name__ == "__main__":
 
     all_results_dicts = []
     
+    experiment_filter = get_experiment_filter(args.average_transfer_methods)
+
     for path_str in args.paths:
         path = Path(path_str)
         assert path.exists(), f"Path {path} does not exist"
@@ -489,8 +579,9 @@ if __name__ == "__main__":
                 max_seed=max_seed,
                 num_time_steps=num_time_steps,
                 methods=None, # Load ALL methods
-                experiment_filter=parse_transfer_algorithm_name,
+                experiment_filter=experiment_filter,
                 mode=mode,
+                average_transfer_methods=args.average_transfer_methods,
             )
             all_results_dicts.append(benchmark_results)
 
@@ -503,20 +594,56 @@ if __name__ == "__main__":
     benchmark_families = sorted(list(merged_results.keys()))
 
     # Find all unique methods across the merged dataset
-    methods_to_show = set()
+    all_methods = set()
     for bench, (t_range, method_dict) in merged_results.items():
-        methods_to_show.update(method_dict.keys())
-    methods_to_show = sorted(list(methods_to_show))
+        all_methods.update(method_dict.keys())
+    
+    if args.methods_to_show:
+        methods_to_show = []
+        for m in all_methods:
+            if any(m.startswith(choice) for choice in args.methods_to_show):
+                methods_to_show.append(m)
+        methods_to_show = sorted(methods_to_show)
+    else:
+        methods_to_show = sorted(list(all_methods))
     
     print(f"Total methods to plot ({len(methods_to_show)}):")
     for m in methods_to_show:
         print(f" - {m}")
 
     # Generate a consistent color dictionary for all methods
+    HARDCODED_COLORS = {
+        "TPE": "tab:blue",
+        "RS": "tab:orange",
+        "Random Search": "black",
+        "BORE": "tab:green",
+        "CQR": "tab:red",
+        "REA": "#8172B3",
+        "ZeroShot": "tab:purple",
+        "BoundingBox": "tab:brown",
+        "QuantileTransfer": "tab:pink",
+        "ASHA": "tab:gray",
+        "BOHB": "tab:olive",
+        "ASHACQR": "tab:cyan",
+        "ASHABORE": "tab:orange",
+    }
+    
     cmap = plt.get_cmap("tab20")
-    color_dict = {m: cmap(i % 20) for i, m in enumerate(methods_to_show)}
+    color_dict = {}
+    fallback_idx = 0
+    
+    for m in methods_to_show:
+        assigned_color = None
+        for base_name, color in sorted(HARDCODED_COLORS.items(), key=lambda x: len(x[0]), reverse=True):
+            if m.startswith(base_name):
+                assigned_color = color
+                break
+        if assigned_color is None:
+            assigned_color = cmap(fallback_idx % 20)
+            fallback_idx += 1
+        color_dict[m] = assigned_color
 
-    result_folder = figure_folder(Path("figures") / "tl")
+    result_folder = figure_folder(Path("figures") / "max")
     result_folder.mkdir(parents=True, exist_ok=True)
     
     # Rename dict can be empty to use raw names
@@ -527,7 +654,7 @@ if __name__ == "__main__":
         "RS": "Random Search",
     }
 
-    stacked_benchmark_results, final_methods = stack_benchmark_results(
+    stacked_benchmark_results, final_methods, stacked_t_ranges = stack_benchmark_results(
         benchmark_results_dict=merged_results,
         methods_to_show=methods_to_show,
         benchmark_families=benchmark_families,
@@ -538,10 +665,12 @@ if __name__ == "__main__":
         with catchtime("generating rank table"):
             generate_rank_results(
                 stacked_benchmark_results=stacked_benchmark_results,
+                stacked_t_ranges=stacked_t_ranges,
                 methods_to_show=final_methods,
                 rename_dict=rename_dict,
                 result_folder=result_folder,
                 color_dict=color_dict,
+                x_log_scale=args.x_log_scale,
             )
 
         with catchtime("generating plots per task"):
@@ -551,6 +680,7 @@ if __name__ == "__main__":
                 rename_dict=rename_dict,
                 result_folder=result_folder,
                 y_log_scale=True,
+                x_log_scale=args.x_log_scale,
                 y_limits=None,
                 mode=mode,
                 color_dict=color_dict,
@@ -559,11 +689,13 @@ if __name__ == "__main__":
         with catchtime("generating average normalized regret"):
             plot_average_normalized_regret(
                 stacked_benchmark_results=stacked_benchmark_results,
+                stacked_t_ranges=stacked_t_ranges,
                 methods_to_show=final_methods,
                 rename_dict=rename_dict,
                 result_folder=result_folder,
                 title="Normalized-regret",
                 color_dict=color_dict,
+                x_log_scale=args.x_log_scale,
             )
         
     print(f"Finished generating all plots in {result_folder}")
