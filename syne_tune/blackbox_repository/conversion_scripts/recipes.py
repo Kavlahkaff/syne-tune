@@ -45,15 +45,15 @@ from syne_tune.blackbox_repository.conversion_scripts.scripts.pd1_import import 
     PD1Recipe,
 )
 
-from syne_tune.blackbox_repository.conversion_scripts.scripts.autoencodix_import import (
-    AutoEncodixVanillixTcgaJsonRecipe,
-    AutoEncodixVanillixSchcJsonRecipe,
-    AutoEncodixVarixTcgaJsonRecipe,
-    AutoEncodixVarixSchcJsonRecipe,
-    AutoEncodixOntixTcgaJsonRecipe,
-    AutoEncodixOntixSchcJsonRecipe,
-    AutoEncodixDisentanglixTcgaJsonRecipe,
-    AutoEncodixDisentanglixSchcJsonRecipe,
+from syne_tune.blackbox_repository.conversion_scripts.scripts.BBOmix_import import (
+    BBOmixVanillixTcgaJsonRecipe,
+    BBOmixVanillixSchcJsonRecipe,
+    BBOmixVarixTcgaJsonRecipe,
+    BBOmixVarixSchcJsonRecipe,
+    BBOmixOntixTcgaJsonRecipe,
+    BBOmixOntixSchcJsonRecipe,
+    BBOmixDisentanglixTcgaJsonRecipe,
+    BBOmixDisentanglixSchcJsonRecipe,
 
 )
 
@@ -89,14 +89,14 @@ recipes = [
     TabrepoNeuralNetTorch(),
     TabrepoLightGBM(),
     TabrepoRecipeKNeighbors(),
-    AutoEncodixVanillixTcgaJsonRecipe(),
-    AutoEncodixVanillixSchcJsonRecipe(),
-    AutoEncodixVarixTcgaJsonRecipe(),
-    AutoEncodixVarixSchcJsonRecipe(),
-    AutoEncodixOntixTcgaJsonRecipe(),
-    AutoEncodixOntixSchcJsonRecipe(),
-    AutoEncodixDisentanglixTcgaJsonRecipe(),
-    AutoEncodixDisentanglixSchcJsonRecipe(),
+    BBOmixVanillixTcgaJsonRecipe(),
+    BBOmixVanillixSchcJsonRecipe(),
+    BBOmixVarixTcgaJsonRecipe(),
+    BBOmixVarixSchcJsonRecipe(),
+    BBOmixOntixTcgaJsonRecipe(),
+    BBOmixOntixSchcJsonRecipe(),
+    BBOmixDisentanglixTcgaJsonRecipe(),
+    BBOmixDisentanglixSchcJsonRecipe(),
 ]
 
 try:

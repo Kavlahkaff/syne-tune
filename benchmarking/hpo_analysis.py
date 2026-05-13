@@ -89,7 +89,7 @@ DATASET_DOWNSTREAM_METRICS: dict[str, list[str]] = {
 
 # Map metric_ name → human-readable label for figures
 METRIC_LABELS: dict[str, str] = {
-    METRIC_DOWNSTREAM:                  "Avg. downstream (AUC/R²)",
+    METRIC_DOWNSTREAM:                  "Avg. downstream (AUC)",
     METRIC_RECON_LOSS:                  "Reconstruction loss",
     METRIC_ELAPSED_TIME:                "Runtime (s)",
     METRIC_AUTHOR_CELL_TYPE:            "Cell type (AUC)",
@@ -171,7 +171,11 @@ DATASET_MARKERS = {"tcga": "o", "schc": "s"}
 
 plt.rcParams.update({
     "font.family":        "sans-serif",
-    "font.size":          11,
+    "font.size":          16,
+    "axes.labelsize":     16,
+    "xtick.labelsize":    14,
+    "ytick.labelsize":    14,
+    "axes.titlesize":     16,
     "axes.spines.top":    False,
     "axes.spines.right":  False,
     "figure.dpi":         150,
@@ -416,8 +420,9 @@ def plot_proxy_correlation(df: pd.DataFrame, out_dir: Path) -> None:
     norm    = mcolors.Normalize(vmin=-1, vmax=1)
     missing = (0.93, 0.93, 0.93, 1)
 
-    fig_a, ax_a = plt.subplots(figsize=(max(8, len(base_tasks) * 0.95), 3.5))
-
+    # Increase base height to ensure squares and x-labels fit well
+    fig_a, ax_a = plt.subplots(figsize=(max(8, len(base_tasks) * 0.95), max(5.0, len(archs) * 0.95 + 1.5)))
+    
     for i, arch in enumerate(archs):
         for j, base in enumerate(base_tasks):
             val_base = rho.get((arch, base, "base"), np.nan)
@@ -439,9 +444,9 @@ def plot_proxy_correlation(df: pd.DataFrame, out_dir: Path) -> None:
                     edgecolor="white", lw=0.5,
                 ))
                 if np.isfinite(val_chr):
-                    ax_a.text(j + 0.3, i + 0.7, f"{val_chr:.2f}", fontsize=7, ha="center")
+                    ax_a.text(j + 0.3, i + 0.7, f"{val_chr:.2f}", ha="center", va="center", fontsize=10)
                 if np.isfinite(val_rea):
-                    ax_a.text(j + 0.7, i + 0.3, f"{val_rea:.2f}", fontsize=7, ha="center")
+                    ax_a.text(j + 0.7, i + 0.3, f"{val_rea:.2f}", ha="center", va="center", fontsize=10)
             else:
                 ax_a.add_patch(Rectangle(
                     (j, i), 1, 1,
@@ -450,24 +455,32 @@ def plot_proxy_correlation(df: pd.DataFrame, out_dir: Path) -> None:
                 ))
                 if np.isfinite(val_base):
                     ax_a.text(j + 0.5, i + 0.5, f"{val_base:.2f}",
-                              ha="center", va="center", fontsize=8)
+                              ha="center", va="center", fontsize=14)
 
     ax_a.set_xlim(0, len(base_tasks))
     ax_a.set_ylim(len(archs), 0)
     ax_a.set_xticks(np.arange(len(base_tasks)) + 0.5)
     ax_a.set_yticks(np.arange(len(archs)) + 0.5)
-    ax_a.set_xticklabels(
-        [t.replace("_", "\n") for t in base_tasks], fontsize=8, rotation=45, ha="right"
-    )
-    ax_a.set_yticklabels([a.capitalize() for a in archs], fontsize=9)
+    
+    # Remove "clin" from labels and replace underscores with newlines
+    clean_labels = []
+    for t in base_tasks:
+        t_clean = re.sub(r'(?i)_?clin_?', '_', t).strip('_')
+        if not t_clean or t_clean.lower() == 'clin':
+            t_clean = t.replace("clin", "").strip('_')
+        clean_labels.append(t_clean.replace("_", "\n"))
+        
+    ax_a.set_xticklabels(clean_labels, rotation=45, ha="right")
+    ax_a.set_yticklabels([a.capitalize() for a in archs])
+    
+    # Force cells to be square
+    ax_a.set_aspect('equal')
+    
     ax_a.set_title(
         "Spearman correlation: reconstruction loss ↔ downstream performance\n"
         "(Ontix: chromosome / reactome split cells)",
-        fontsize=10,
     )
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    fig_a.colorbar(sm, ax=ax_a, shrink=0.8).set_label("Spearman ρ")
+    # Colorbar (scale) and label removed for paper insertion
     fig_a.tight_layout()
     _save(fig_a, out_dir, "fig4_1a_proxy_heatmap.pdf")
 
@@ -527,17 +540,16 @@ def plot_proxy_correlation(df: pd.DataFrame, out_dir: Path) -> None:
                     ax.plot(xs, m_coef * xs + b, color="black", lw=1.2, ls="--", alpha=0.6)
                     rho_val, p = spearmanr(valid[METRIC_RECON_LOSS], valid[metric])
                     star = "*" if p < 0.05 else ""
-                    ax.set_title(f"{dset.upper()}  ρ={rho_val:.2f}{star}", fontsize=9)
+                    ax.set_title(f"{dset.upper()}  ρ={rho_val:.2f}{star}")
                 else:
-                    ax.set_title(dset.upper(), fontsize=9)
+                    ax.set_title(dset.upper())
 
-                ax.set_xlabel("Recon. loss (min)", fontsize=8)
-                ax.set_ylabel(METRIC_LABELS.get(metric, metric), fontsize=8)
+                ax.set_xlabel("Recon. loss (min)")
+                ax.set_ylabel(METRIC_LABELS.get(metric, metric))
                 ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
 
         fig_b.suptitle(
-            f"{arch.capitalize()} — reconstruction loss vs. downstream metrics",
-            fontsize=11, y=1.01,
+            f"{arch.capitalize()} — reconstruction loss vs. downstream metrics", y=1.01,
         )
         fig_b.tight_layout()
         _save(fig_b, out_dir, f"fig4_1b_proxy_scatter_{arch}.pdf")
@@ -593,25 +605,24 @@ def _draw_importance_bars(
     arch: str,
     title: str,
 ) -> None:
-    """Render a horizontal importance bar chart onto ax."""
+    """Render a vertical importance bar chart onto ax."""
     order  = np.argsort(imp_mean)[::-1]
     labels = [HP_LABELS.get(hp_cols[i], hp_cols[i]) for i in order]
     colors = [
         ARCH_COLORS.get(arch, "#888888") if imp_mean[i] > 0 else "#cccccc"
         for i in order
     ]
-    ax.barh(
+    ax.bar(
         range(len(order)), imp_mean[order],
-        xerr=imp_std[order], color=colors,
-        align="center", height=0.65,
+        yerr=imp_std[order], color=colors,
+        align="center", width=0.65,
         error_kw={"linewidth": 0.8, "ecolor": "grey"},
     )
-    ax.set_yticks(range(len(order)))
-    ax.set_yticklabels(labels, fontsize=9)
-    ax.invert_yaxis()
-    ax.axvline(0, color="black", lw=0.8)
-    ax.set_xlabel("Permutation importance\n(mean decrease in R²)", fontsize=9)
-    ax.set_title(title, fontsize=10, color=ARCH_COLORS.get(arch, "black"))
+    ax.set_xticks(range(len(order)))
+    ax.set_xticklabels(labels, rotation=45, ha="right")
+    ax.axhline(0, color="black", lw=0.8)
+    ax.set_ylabel("Permutation importance\n(mean decrease in R²)")
+    ax.set_title(title, color=ARCH_COLORS.get(arch, "black"))
 
 
 def plot_hp_importance(df: pd.DataFrame, out_dir: Path) -> None:
@@ -633,9 +644,9 @@ def plot_hp_importance(df: pd.DataFrame, out_dir: Path) -> None:
         datasets = sorted(arch_sub["dataset"].unique())
 
         # Build target list: aggregate metrics first, then one slot per dataset
-        target_specs: list[tuple[str, str, pd.DataFrame]] = [
-            (METRIC_DOWNSTREAM, "Avg. downstream (all datasets)", arch_sub),
-            (METRIC_RECON_LOSS,  "Reconstruction loss (all datasets)", arch_sub),
+        target_specs: list[tuple[str, str, str, pd.DataFrame]] = [
+            (METRIC_DOWNSTREAM, "Avg. downstream (all datasets)", "downstream", arch_sub),
+            (METRIC_RECON_LOSS,  "Reconstruction loss (all datasets)", "recon_loss", arch_sub),
         ]
         for dset in datasets:
             indiv   = [m for m in _downstream_metrics_for(dset) if m in arch_sub.columns]
@@ -648,127 +659,118 @@ def plot_hp_importance(df: pd.DataFrame, out_dir: Path) -> None:
             target_specs.append((
                 "__target__",
                 f"{dset.upper()} per-task avg.",
+                dset.lower(),
                 dset_df,
             ))
 
-        ncols = len(target_specs)
-        fig, axes = plt.subplots(
-            1, ncols,
-            figsize=(5.5 * ncols, 0.55 * len(hp_cols) + 2.5),
-            squeeze=False,
-        )
-
-        for col_idx, (target_col, label, source_df) in enumerate(target_specs):
-            ax     = axes[0][col_idx]
+        for target_col, label, setting_name, source_df in target_specs:
             result = _fit_importance(source_df, hp_cols, target_col)
             if result is None:
-                ax.set_visible(False)
                 print(f"  [skip importance] {arch} → {label}: too few rows")
                 continue
+            
+            fig, ax = plt.subplots(figsize=(0.65 * len(hp_cols) + 2.5, 5.5))
             imp_mean, imp_std, used_cols = result
             _draw_importance_bars(ax, imp_mean, imp_std, used_cols, arch,
                                   f"{arch.capitalize()} → {label}")
 
-        fig.suptitle(f"HP importance — {arch.capitalize()}", fontsize=12)
-        fig.tight_layout()
-        _save(fig, out_dir, f"fig4_2_hp_importance_{arch}.pdf")
+            fig.suptitle(f"HP importance — {arch.capitalize()}")
+            fig.tight_layout()
+            _save(fig, out_dir, f"fig4_2_hp_importance_{arch}_{setting_name}.pdf")
 
 
 # ── Figure 4.2b — Per-dataset downstream performance distribution ─────────────
 
 def plot_downstream_per_dataset(df: pd.DataFrame, out_dir: Path) -> None:
     """
-    Two figures (one per dataset): violin plots of METRIC_DOWNSTREAM split by
-    architecture, so dataset-specific performance differences are visible
-    without the cross-dataset mixing of fig4_3a.
+    One figure: split violin plots of METRIC_DOWNSTREAM by architecture,
+    splitting the datasets (SCHC vs TCGA) on the left and right sides of the violin.
     """
-    agg     = _aggregate_seeds(df)
-    agg     = agg.dropna(subset=[METRIC_DOWNSTREAM])
-    archs   = sorted(agg["architecture"].unique())
-    datasets = sorted(agg["dataset"].unique())
+    agg = _aggregate_seeds(df)
+    agg = agg.dropna(subset=[METRIC_DOWNSTREAM, "dataset", "architecture"])
+    
+    # Filter only for schc and tcga just in case
+    agg = agg[agg["dataset"].isin(["schc", "tcga"])]
+    if agg.empty:
+        return
+        
+    archs = sorted(agg["architecture"].unique())
 
-    for dset in datasets:
-        dset_agg = agg[agg["dataset"] == dset]
-        fig, ax  = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.violinplot(
+        data=agg,
+        x="architecture",
+        y=METRIC_DOWNSTREAM,
+        hue="dataset",
+        split=True,
+        inner="quartile",
+        order=archs,
+        hue_order=["schc", "tcga"],
+        ax=ax,
+        palette={"schc": "#8da0cb", "tcga": "#fc8d62"}
+    )
 
-        plot_vals = [
-            dset_agg.loc[dset_agg["architecture"] == a, METRIC_DOWNSTREAM].values
-            for a in archs
-        ]
-        parts = ax.violinplot(plot_vals, positions=range(len(archs)),
-                              showmedians=True, showextrema=True)
-        for body, arch in zip(parts["bodies"], archs):
-            body.set_facecolor(ARCH_COLORS.get(arch, "#aaaaaa"))
-            body.set_alpha(0.7)
-        for key in ("cbars", "cmins", "cmaxes", "cmedians"):
-            if key in parts:
-                parts[key].set_color("black")
-                parts[key].set_linewidth(1.2)
+    ax.set_xticklabels([a.capitalize() for a in archs])
+    ax.set_xlabel("Architecture")
+    ax.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM])
+    ax.set_title(
+        "Downstream performance by architecture\n"
+        "(split by dataset, higher is better)",
+    )
+    
+    # Clean up legend
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(handles=handles, labels=[l.upper() for l in labels], title="Dataset")
 
-        ax.set_xticks(range(len(archs)))
-        ax.set_xticklabels([a.capitalize() for a in archs], fontsize=10)
-        ax.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM], fontsize=10)
-        ax.set_title(
-            f"{dset.upper()} — downstream performance by architecture\n"
-            "(higher is better)",
-            fontsize=10,
-        )
-        fig.tight_layout()
-        _save(fig, out_dir, f"fig4_2b_downstream_violin_{dset}.pdf")
+    fig.tight_layout()
+    _save(fig, out_dir, "fig4_2b_downstream_violin_combined.pdf")
 
 
 def plot_recon_loss_per_dataset(df: pd.DataFrame, out_dir: Path) -> None:
     """
-    Two figures (one per dataset): violin plots of METRIC_RECON_LOSS split by
-    architecture, so dataset-specific reconstruction loss differences are visible.
+    One figure: split violin plots of METRIC_RECON_LOSS by architecture,
+    splitting the datasets (SCHC vs TCGA) on the left and right sides of the violin.
     """
-    agg     = _aggregate_seeds(df)
-    agg     = agg.dropna(subset=[METRIC_RECON_LOSS])
-    archs   = sorted(agg["architecture"].unique())
-    datasets = sorted(agg["dataset"].unique())
-
-    for dset in datasets:
-        dset_agg = agg[agg["dataset"] == dset]
-        fig, ax  = plt.subplots(figsize=(7, 4))
-
-        plot_vals = [
-            dset_agg.loc[dset_agg["architecture"] == a, METRIC_RECON_LOSS].values
-            for a in archs
-        ]
+    agg = _aggregate_seeds(df)
+    agg = agg.dropna(subset=[METRIC_RECON_LOSS, "dataset", "architecture"])
+    
+    # Filter only for schc and tcga just in case
+    agg = agg[agg["dataset"].isin(["schc", "tcga"])]
+    if agg.empty:
+        return
         
-        valid_positions = []
-        valid_vals = []
-        valid_archs = []
-        for i, (vals, arch) in enumerate(zip(plot_vals, archs)):
-            if len(vals) > 0:
-                valid_positions.append(i)
-                valid_vals.append(vals)
-                valid_archs.append(arch)
+    archs = sorted(agg["architecture"].unique())
 
-        if not valid_vals:
-            plt.close(fig)
-            continue
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.violinplot(
+        data=agg,
+        x="architecture",
+        y=METRIC_RECON_LOSS,
+        hue="dataset",
+        split=True,
+        inner="quartile",
+        order=archs,
+        hue_order=["schc", "tcga"],
+        ax=ax,
+        palette={"schc": "#8da0cb", "tcga": "#fc8d62"}
+    )
 
-        parts = ax.violinplot(valid_vals, positions=valid_positions,
-                              showmedians=True, showextrema=True)
-        for body, arch in zip(parts["bodies"], valid_archs):
-            body.set_facecolor(ARCH_COLORS.get(arch, "#aaaaaa"))
-            body.set_alpha(0.7)
-        for key in ("cbars", "cmins", "cmaxes", "cmedians"):
-            if key in parts:
-                parts[key].set_color("black")
-                parts[key].set_linewidth(1.2)
+    ax.set_xticklabels([a.capitalize() for a in archs])
+    ax.set_xlabel("Architecture")
+    ax.set_ylabel(METRIC_LABELS[METRIC_RECON_LOSS])
+    ax.set_title(
+        "Reconstruction loss by architecture\n"
+        "(split by dataset, lower is better)",
+    )
 
-        ax.set_xticks(range(len(archs)))
-        ax.set_xticklabels([a.capitalize() for a in archs], fontsize=10)
-        ax.set_ylabel(METRIC_LABELS[METRIC_RECON_LOSS], fontsize=10)
-        ax.set_title(
-            f"{dset.upper()} — reconstruction loss by architecture\n"
-            "(lower is better)",
-            fontsize=10,
-        )
-        fig.tight_layout()
-        _save(fig, out_dir, f"fig4_2b_recon_loss_violin_{dset}.pdf")
+    # Clean up legend
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(handles=handles, labels=[l.upper() for l in labels], title="Dataset")
+
+    fig.tight_layout()
+    _save(fig, out_dir, "fig4_2b_recon_loss_violin_combined.pdf")
 
 
 # ── Figure 4.2c — Per-objective importance ────────────────────────────────────
@@ -776,11 +778,8 @@ def plot_recon_loss_per_dataset(df: pd.DataFrame, out_dir: Path) -> None:
 def plot_importance_per_objective(df: pd.DataFrame, out_dir: Path) -> None:
     """
     For every individual downstream metric (not just the aggregate), produce
-    one figure per architecture showing HP importance for that specific objective.
-
-    Rows = architectures, columns = individual metrics that exist for that
-    architecture's datasets.  This reveals whether e.g. cancer-type prediction
-    and OS-status prediction are driven by the same HPs.
+    one separate figure per architecture and objective showing HP importance
+    for that specific objective.
     """
     agg   = _aggregate_seeds(df)
     archs = sorted(agg["architecture"].unique())
@@ -791,7 +790,7 @@ def plot_importance_per_objective(df: pd.DataFrame, out_dir: Path) -> None:
         datasets = sorted(arch_sub["dataset"].unique())
 
         # Collect every individual metric present for any dataset of this arch
-        all_objectives: list[tuple[str, str, pd.DataFrame]] = []
+        all_objectives: list[tuple[str, str, pd.DataFrame, str]] = []
         for dset in datasets:
             dset_df = arch_sub[arch_sub["dataset"] == dset].copy()
             for metric in _downstream_metrics_for(dset):
@@ -800,35 +799,28 @@ def plot_importance_per_objective(df: pd.DataFrame, out_dir: Path) -> None:
                 if dset_df[metric].notna().sum() < 20:
                     continue
                 label = f"{dset.upper()} — {METRIC_LABELS.get(metric, metric)}"
-                all_objectives.append((metric, label, dset_df))
+                all_objectives.append((metric, label, dset_df, dset))
 
         if not all_objectives:
             print(f"  [skip per-obj importance] {arch}: no objectives with enough data")
             continue
 
-        ncols = len(all_objectives)
-        fig, axes = plt.subplots(
-            1, ncols,
-            figsize=(5.5 * ncols, 0.55 * len(hp_cols) + 2.5),
-            squeeze=False,
-        )
-
-        for col_idx, (metric, label, source_df) in enumerate(all_objectives):
-            ax     = axes[0][col_idx]
+        for metric, label, source_df, dset in all_objectives:
             result = _fit_importance(source_df, hp_cols, metric)
             if result is None:
-                ax.set_visible(False)
                 print(f"  [skip] {arch} → {label}: too few rows after dropna")
                 continue
+            
+            fig, ax = plt.subplots(figsize=(0.65 * len(hp_cols) + 2.5, 5.5))
             imp_mean, imp_std, used_cols = result
             _draw_importance_bars(ax, imp_mean, imp_std, used_cols, arch, label)
 
-        fig.suptitle(
-            f"HP importance per objective — {arch.capitalize()}",
-            fontsize=12,
-        )
-        fig.tight_layout()
-        _save(fig, out_dir, f"fig4_2c_importance_per_objective_{arch}.pdf")
+            fig.suptitle(
+                f"HP importance per objective — {arch.capitalize()}",
+            )
+            fig.tight_layout()
+            clean_metric = metric.replace("metric_", "")
+            _save(fig, out_dir, f"fig4_2c_importance_per_objective_{arch}_{dset}_{clean_metric}.pdf")
 
 
 # ── Figure 4.3 — Cost of random / default configurations ──────────────────────
@@ -860,11 +852,11 @@ def plot_random_cost(df: pd.DataFrame, out_dir: Path) -> None:
             parts[key].set_color("black")
             parts[key].set_linewidth(1.2)
     ax_a.set_xticks(range(len(archs)))
-    ax_a.set_xticklabels([a.capitalize() for a in archs], fontsize=10)
-    ax_a.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM], fontsize=10)
+    ax_a.set_xticklabels([a.capitalize() for a in archs])
+    ax_a.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM])
     ax_a.set_title(
         "Distribution of downstream performance across configurations\n"
-        "(wide violin → high HPO value)", fontsize=10,
+        "(wide violin → high HPO value)",
     )
     fig_a.tight_layout()
     _save(fig_a, out_dir, "fig4_3a_random_downstream.pdf")
@@ -892,15 +884,14 @@ def plot_random_cost(df: pd.DataFrame, out_dir: Path) -> None:
             med = np.median(all_r)
             ax.axvline(med, color="black", lw=1.5, ls="--",
                        label=f"median={med:.2f}")
-            ax.legend(fontsize=8, frameon=False)
-        ax.set_xlabel("Normalised regret", fontsize=9)
-        ax.set_ylabel("Count", fontsize=9)
-        ax.set_title(arch.capitalize(), color=ARCH_COLORS.get(arch, "black"), fontsize=10)
+            ax.legend(frameon=False)
+        ax.set_xlabel("Normalised regret")
+        ax.set_ylabel("Count")
+        ax.set_title(arch.capitalize(), color=ARCH_COLORS.get(arch, "black"))
 
     fig_b.suptitle(
         "Normalised regret  (best − config) / best  across tasks\n"
         "(right-skewed → most random configs are far from optimal)",
-        fontsize=10,
     )
     fig_b.tight_layout()
     _save(fig_b, out_dir, "fig4_3b_regret.pdf")
@@ -923,11 +914,10 @@ def plot_random_cost(df: pd.DataFrame, out_dir: Path) -> None:
         ax_c.plot(thresholds * 100, fracs,
                   label=arch.capitalize(),
                   color=ARCH_COLORS.get(arch, None), lw=2)
-    ax_c.set_xlabel("Tolerance  (% below best configuration)", fontsize=10)
-    ax_c.set_ylabel("Fraction of configs within tolerance", fontsize=10)
-    ax_c.set_title("How easy is it to find a good configuration by random sampling?",
-                   fontsize=10)
-    ax_c.legend(fontsize=9, frameon=False)
+    ax_c.set_xlabel("Tolerance  (% below best configuration)")
+    ax_c.set_ylabel("Fraction of configs within tolerance")
+    ax_c.set_title("How easy is it to find a good configuration by random sampling?")
+    ax_c.legend(frameon=False)
     ax_c.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1))
     fig_c.tight_layout()
     _save(fig_c, out_dir, "fig4_3c_fraction_within_tolerance.pdf")
@@ -959,13 +949,12 @@ def plot_random_cost(df: pd.DataFrame, out_dir: Path) -> None:
         ax_d.set_xticks(range(len(indiv)))
         ax_d.set_xticklabels(
             [METRIC_LABELS.get(m, m) for m in indiv],
-            rotation=35, ha="right", fontsize=9,
+            rotation=35, ha="right",
         )
-        ax_d.set_ylabel("Performance (AUC / R²)", fontsize=10)
+        ax_d.set_ylabel("Performance (AUC)")
         ax_d.set_title(
             f"{dset.upper()} — per-task downstream performance distribution\n"
             "(all architectures combined)",
-            fontsize=10,
         )
         fig_d.tight_layout()
         _save(fig_d, out_dir, f"fig4_3d_per_task_violin_{dset}.pdf")
@@ -1024,17 +1013,15 @@ def plot_landscape(df: pd.DataFrame, out_dir: Path) -> None:
             )
             plt.colorbar(sc, ax=ax, fraction=0.046, pad=0.04,
                          label=METRIC_LABELS[METRIC_DOWNSTREAM])
-            ax.set_xlabel(f"PC1 ({var_exp[0]:.0%} var)", fontsize=8)
-            ax.set_ylabel(f"PC2 ({var_exp[1]:.0%} var)", fontsize=8)
+            ax.set_xlabel(f"PC1 ({var_exp[0]:.0%} var)")
+            ax.set_ylabel(f"PC2 ({var_exp[1]:.0%} var)")
             ax.set_title(
-                f"{arch.capitalize()} | {dset.upper()}",
-                fontsize=10, color=ARCH_COLORS.get(arch, "black"),
+                f"{arch.capitalize()} | {dset.upper()}", color=ARCH_COLORS.get(arch, "black"),
             )
 
     fig.suptitle(
         "HP-space loss landscape (PCA projection, coloured by downstream performance)\n"
-        "Smooth gradient → suitable for Bayesian optimisation",
-        fontsize=11, y=1.01,
+        "Smooth gradient → suitable for Bayesian optimisation", y=1.01,
     )
     fig.tight_layout()
     _save(fig, out_dir, "fig4_4_landscape_pca.pdf")
@@ -1086,11 +1073,11 @@ def plot_transfer_motivation(df: pd.DataFrame, out_dir: Path) -> None:
             cmap="RdYlGn", vmin=-1, vmax=1, center=0,
             annot=True, fmt=".2f", linewidths=0.3,
             cbar_kws={"label": "Spearman ρ of HP importances"},
+            annot_kws={"size": 10},
         )
         ax.set_title(
             f"{arch.capitalize()} — Cross-task HP importance agreement\n"
             "(high ρ → HP rankings transfer across tasks)",
-            fontsize=10,
         )
         fig.tight_layout()
         _save(fig, out_dir, f"fig4_5_transfer_motivation_{arch}.pdf")
@@ -1165,19 +1152,101 @@ def plot_individual_metric_correlations(df: pd.DataFrame, out_dir: Path) -> None
                 cmap="RdYlGn", vmin=-1, vmax=1, center=0,
                 annot=True, fmt=".2f", linewidths=0.4,
                 cbar_kws={"label": "Spearman ρ"},
+                annot_kws={"size": 10},
             )
 
             ax.set_title(
                 f"{dset.upper()} ({arch.capitalize()}) — Metric Correlations\n"
                 "(Low ρ indicates tasks disagree on HPO rankings)",
-                fontsize=10,
             )
-            plt.xticks(rotation=35, ha="right", fontsize=9)
-            plt.yticks(rotation=0, fontsize=9)
+            plt.xticks(rotation=35, ha="right")
+            plt.yticks(rotation=0)
             fig.tight_layout()
 
             # Save with architecture name in the filename
             _save(fig, out_dir, f"fig4_6_metric_corr_{dset}_{arch}.pdf")
+
+
+# ── Figure 4.9 — Dropout Analysis ─────────────────────────────────────────────
+
+def plot_dropout_analysis(df: pd.DataFrame, out_dir: Path) -> None:
+    """
+    For each architecture, plot the relationship between dropout (drop_p)
+    and downstream performance for every task (modality).
+    Highlights the top 10% of configurations to see if the best performance
+    tends to occur at drop_p -> 0.
+    """
+    agg = _aggregate_seeds(df)
+    if "drop_p" not in agg.columns:
+        print("  [skip dropout analysis] 'drop_p' column not found")
+        return
+
+    agg = agg.dropna(subset=["drop_p", METRIC_DOWNSTREAM])
+    archs = sorted(agg["architecture"].unique())
+
+    for arch in archs:
+        arch_sub = agg[agg["architecture"] == arch]
+        tasks = sorted(arch_sub["task"].unique())
+        
+        if not tasks:
+            continue
+            
+        ncols = min(4, len(tasks))
+        nrows = (len(tasks) + ncols - 1) // ncols
+        fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3.5 * nrows), squeeze=False)
+        
+        for idx, task in enumerate(tasks):
+            row, col = divmod(idx, ncols)
+            ax = axes[row][col]
+            
+            task_df = arch_sub[arch_sub["task"] == task].copy()
+            if len(task_df) < 5:
+                ax.set_visible(False)
+                continue
+                
+            threshold = task_df[METRIC_DOWNSTREAM].quantile(0.90)
+            top_df = task_df[task_df[METRIC_DOWNSTREAM] >= threshold]
+            rest_df = task_df[task_df[METRIC_DOWNSTREAM] < threshold]
+            
+            # Plot the rest
+            ax.scatter(
+                rest_df["drop_p"], rest_df[METRIC_DOWNSTREAM], 
+                alpha=0.3, s=15, color="grey", rasterized=True
+            )
+            # Plot the top 10%
+            ax.scatter(
+                top_df["drop_p"], top_df[METRIC_DOWNSTREAM], 
+                alpha=0.8, s=20, color=ARCH_COLORS.get(arch, "red"), 
+                label="Top 10%", rasterized=True
+            )
+            
+            if len(task_df) > 5 and task_df["drop_p"].nunique() > 1:
+                slope, intercept, *_ = stats.linregress(task_df["drop_p"], task_df[METRIC_DOWNSTREAM])
+                xs = np.linspace(task_df["drop_p"].min(), task_df["drop_p"].max(), 100)
+                ax.plot(xs, slope * xs + intercept, color="black", lw=1.2, ls="--", alpha=0.7)
+                
+                rho, p = spearmanr(task_df["drop_p"], task_df[METRIC_DOWNSTREAM])
+                star = "*" if p < 0.05 else ""
+                ax.set_title(f"{task}\nρ={rho:.2f}{star}", fontsize=12)
+            else:
+                ax.set_title(f"{task}", fontsize=12)
+                
+            ax.set_xlabel("Dropout (drop_p)", fontsize=12)
+            ax.set_ylabel(METRIC_LABELS.get(METRIC_DOWNSTREAM, "Downstream"), fontsize=12)
+            ax.legend(frameon=False, fontsize=10)
+            
+        for idx in range(len(tasks), nrows * ncols):
+            row, col = divmod(idx, ncols)
+            axes[row][col].set_visible(False)
+            
+        fig.suptitle(
+            f"Dropout vs Downstream Performance — {arch.capitalize()}\n"
+            "(Top 10% configs highlighted to show optimal dropout range)",
+            y=1.02 + (0.02 if nrows <= 2 else 0.0),
+        )
+        fig.tight_layout()
+        _save(fig, out_dir, f"fig4_9_dropout_analysis_{arch}.pdf")
+
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
@@ -1191,12 +1260,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out_dir", type=Path, default=Path("./hpo-figures"),
                    help="Output directory (default: ./hpo-figures).")
     p.add_argument(
-        "--skip", nargs="*", default=["proxy", "importance", "downstream_per_dataset", "recon_loss_per_dataset",
-                 "importance_per_objective", "random_cost", "landscape",
-                 "transfer", "metric_corr", "beta_tradeoff"],
+        "--skip", nargs="*", default=[],
         choices=["proxy", "importance", "downstream_per_dataset", "recon_loss_per_dataset",
                  "importance_per_objective", "random_cost", "landscape",
-                 "transfer", "metric_corr", "hp_distributions", "beta_tradeoff"],
+                 "transfer", "metric_corr", "hp_distributions", "beta_tradeoff", "dropout"],
         help="Skip specific figure groups.",
     )
     p.add_argument("--cache", type=Path, default=None,
@@ -1265,7 +1332,7 @@ def plot_hp_distributions(df: pd.DataFrame, out_dir: Path) -> None:
                 counts, bin_edges = np.histogram(vals, bins=20)
                 ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
                 min_val, max_val = vals.min(), vals.max()
-                ax.set_xlabel(f"Range: [{min_val:.2g}, {max_val:.2g}]", fontsize=9)
+                ax.set_xlabel(f"Range: [{min_val:.2g}, {max_val:.2g}]")
             else:
                 ctype = config[0]
                 
@@ -1281,8 +1348,8 @@ def plot_hp_distributions(df: pd.DataFrame, out_dir: Path) -> None:
                     
                     ax.bar(x_pos, y_vals, color=color, width=0.8)
                     ax.set_xticks(x_pos)
-                    ax.set_xticklabels([str(c) for c in choices], rotation=45 if len(choices) > 4 else 0, fontsize=8)
-                    ax.set_xlabel(f"Choices: {len(choices)}", fontsize=9)
+                    ax.set_xticklabels([str(c) for c in choices], rotation=45 if len(choices) > 4 else 0)
+                    ax.set_xlabel(f"Choices: {len(choices)}")
                     
                 elif ctype == "loguniform":
                     lower, upper = config[1], config[2]
@@ -1292,7 +1359,7 @@ def plot_hp_distributions(df: pd.DataFrame, out_dir: Path) -> None:
                     ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
                     ax.set_xscale("log")
                     ax.set_xlim(lower, upper)
-                    ax.set_xlabel(f"Range: [{lower:.1e}, {upper:.1e}]", fontsize=9)
+                    ax.set_xlabel(f"Range: [{lower:.1e}, {upper:.1e}]")
                     
                 elif ctype == "uniform":
                     lower, upper = config[1], config[2]
@@ -1300,16 +1367,16 @@ def plot_hp_distributions(df: pd.DataFrame, out_dir: Path) -> None:
                     counts, bin_edges = np.histogram(vals, bins=bins)
                     ax.bar(bin_edges[:-1], counts / 3.0, width=np.diff(bin_edges), color=color, align="edge")
                     ax.set_xlim(lower, upper)
-                    ax.set_xlabel(f"Range: [{lower:.2g}, {upper:.2g}]", fontsize=9)
+                    ax.set_xlabel(f"Range: [{lower:.2g}, {upper:.2g}]")
                     
-            ax.set_title(HP_LABELS.get(hp, hp), fontsize=10)
-            ax.set_ylabel("Count", fontsize=9)
+            ax.set_title(HP_LABELS.get(hp, hp))
+            ax.set_ylabel("Count")
             
         for idx in range(len(hp_cols), nrows * ncols):
             row, col = divmod(idx, ncols)
             axes[row][col].set_visible(False)
             
-        fig.suptitle(f"Hyperparameter Distributions — {arch.capitalize()}", fontsize=12)
+        fig.suptitle(f"Hyperparameter Distributions — {arch.capitalize()}")
         fig.tight_layout()
         _save(fig, out_dir, f"fig4_8_hp_distributions_{arch}.pdf")
 
@@ -1375,10 +1442,9 @@ def plot_disentanglix_beta_vs_downstream(df: pd.DataFrame, out_dir: Path) -> Non
             rho, p = spearmanr(plot_df[beta_col], plot_df[METRIC_DOWNSTREAM])
             ax.set_title(
                 f"{HP_LABELS.get(beta_col, beta_col)}  |  ρ={rho:.2f}" + ("*" if p < 0.05 else ""),
-                fontsize=10,
             )
         else:
-            ax.set_title(HP_LABELS.get(beta_col, beta_col), fontsize=10)
+            ax.set_title(HP_LABELS.get(beta_col, beta_col))
 
         # Ensure strictly positive values for log scale
         min_positive = plot_df[beta_col][plot_df[beta_col] > 0].min()
@@ -1389,15 +1455,14 @@ def plot_disentanglix_beta_vs_downstream(df: pd.DataFrame, out_dir: Path) -> Non
             shifted = plot_df[beta_col] + 1e-8
             ax.set_xscale("log")
 
-        ax.set_xlabel(HP_LABELS.get(beta_col, beta_col) + " (log scale)", fontsize=10)
+        ax.set_xlabel(HP_LABELS.get(beta_col, beta_col) + " (log scale)")
         ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
         ax.xaxis.set_minor_formatter(mticker.NullFormatter())
-        ax.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM], fontsize=10)
-        ax.legend(fontsize=8, frameon=False)
+        ax.set_ylabel(METRIC_LABELS[METRIC_DOWNSTREAM])
+        ax.legend(frameon=False)
 
     fig.suptitle(
         "Disentanglix β values vs. average downstream performance",
-        fontsize=12,
     )
     fig.tight_layout()
     _save(fig, out_dir, "fig4_7_disentanglix_beta_vs_downstream.pdf")
@@ -1467,6 +1532,10 @@ def main() -> None:
     if "hp_distributions" not in skip:
         print("─── 4.8  Hyperparameter distributions …")
         plot_hp_distributions(df, args.out_dir)
+
+    if "dropout" not in skip:
+        print("─── 4.9  Dropout analysis …")
+        plot_dropout_analysis(df, args.out_dir)
 
     print("\n✓ All figures saved to", args.out_dir)
 

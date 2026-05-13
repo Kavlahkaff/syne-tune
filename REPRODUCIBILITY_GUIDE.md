@@ -1,6 +1,6 @@
-# Autoencodix HPO Benchmarks: Reproducibility Guide
+# BBOmix HPO Benchmarks: Reproducibility Guide
 
-This guide explains how to reproduce the experiments for the Autoencodix benchmark paper. It covers importing raw experiment data into `syne-tune` blackboxes, running hyperparameter optimization (HPO) algorithms (including transfer learning), and generating the figures and visualizations presented in the paper.
+This guide explains how to reproduce the experiments for the BBOmix benchmark paper. It covers importing raw experiment data into `syne-tune` blackboxes, running hyperparameter optimization (HPO) algorithms (including transfer learning), and generating the figures and visualizations presented in the paper.
 
 ## Dependencies and Installation
 
@@ -22,7 +22,7 @@ uv pip install slurmpilot # or pip install slurmpilot
 
 ## 1. Importing Raw Data into Blackboxes
 
-The raw experiment results must first be converted into Tabular Blackboxes compatible with the `syne-tune` framework. This is handled by `syne_tune/blackbox_repository/conversion_scripts/scripts/autoencodix_import.py`.
+The raw experiment results must first be converted into Tabular Blackboxes compatible with the `syne-tune` framework. This is handled by `syne_tune/blackbox_repository/conversion_scripts/scripts/bbomix_import.py`.
 
 This script loads the raw JSON run files, extracts hyperparameter configurations and metrics. It then serializes these into a format that `syne-tune` can use for rapid simulated evaluations.
 
@@ -30,27 +30,27 @@ This script loads the raw JSON run files, extracts hyperparameter configurations
 If you have the raw JSON experiment data downloaded on your machine, you can run the import script to generate the blackboxes locally.
 
 ```bash
-# Modify the script or pass your custom path to the `generate_autoencodix_from_json` method if necessary.
+# Modify the script or pass your custom path to the `generate_bbomix_from_json` method if necessary.
 # By default, it looks for the data at the path defined by RESULTS_ROOT in the script.
-# Edit `RESULTS_ROOT` in `autoencodix_import.py` to point to your raw JSON directory, then run:
+# Edit `RESULTS_ROOT` in `BBOmix_import.py` to point to your raw JSON directory, then run:
 
-python syne_tune/blackbox_repository/conversion_scripts/scripts/autoencodix_import.py
+python syne_tune/blackbox_repository/conversion_scripts/scripts/bbomix_import.py
 ```
 This process will create the necessary blackbox files in your local syne-tune blackbox repository (typically under `~/.blackbox-repository/`).
 
 ## 2. Running Optimizers on Benchmark Tasks
 
-Once the blackboxes are imported, you can run various optimizers on the Autoencodix benchmark tasks. The benchmark tasks and configurations are defined in `benchmarking/benchmarks.py`.
+Once the blackboxes are imported, you can run various optimizers on the BBOmix benchmark tasks. The benchmark tasks and configurations are defined in `benchmarking/benchmarks.py`.
 
 ### Single and Multi-Fidelity Optimizers
 Use `benchmarking/benchmark_main.py` to evaluate standard single-fidelity and multi-fidelity HPO algorithms (such as Random Search, TPE, BORE, ASHA, BOHB, etc.).
 
 **Example Command:**
 ```bash
-# Run Random Search on a specific autoencodix benchmark for seed 0
+# Run Random Search on a specific bbomix benchmark for seed 0
 python benchmarking/benchmark_main.py \
     --method RS \
-    --benchmark autoencodix-vanillix_tcga-tcga_RNA_CLIN \
+    --benchmark bbomix-vanillix_tcga-tcga-RNA-CLIN \
     --seed 0 \
     --n_workers 1
 ```
@@ -63,7 +63,7 @@ To evaluate transfer learning optimizers (such as `BoundingBox`, `QuantileTransf
 # Run ZeroShot transfer learning on a specific benchmark
 python benchmarking/benchmark_transfer.py \
     --method ZeroShot \
-    --benchmark autoencodix-vanillix_tcga-tcga_RNA_CLIN \
+    --benchmark bbomix-vanillix_tcga-tcga-RNA-CLIN \
     --seed 0 \
     --all_datasets # Optional: Include to transfer knowledge across different datasets
 ```
@@ -112,8 +112,8 @@ This script reproduces figures such as:
 **Example Command:**
 ```bash
 # Generate the paper figures from the raw data
-python benchmarking/hpo_analysis2.py \
-    --results_root /path/to/your/raw/autoencodix_results \
+python benchmarking/hpo_analysis.py \
+    --results_root /path/to/your/raw/BBOmix_results \
     --out_dir ./hpo-figures
 ```
 The resulting plots will be saved as PDFs in the specified output directory (`./hpo-figures` by default).

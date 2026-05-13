@@ -17,7 +17,7 @@ if __name__ == "__main__":
     ]
     
     # Run all benchmarks for all test tasks
-    benchmarks = [b for b in benchmark_definitions.keys() if "autoencodix" in b]
+    benchmarks = [b for b in benchmark_definitions.keys() if "bbomix" in b]
 
     all_architectures = ["ontix", "disentanglix", "vanillix" ,"varix"]
 
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     for method in methods:
         for bench in benchmarks:
-            # benchmark format: autoencodix-vanillix_schc-schc-RNA-CLIN
+            # benchmark format: bbomix-vanillix_schc-schc-RNA-CLIN
             parts = bench.split("-")
             target_arch = parts[1].split("_")[0]
 

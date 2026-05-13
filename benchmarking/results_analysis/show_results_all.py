@@ -29,7 +29,7 @@ def figure_folder(path):
 
 lw = 2.5
 alpha = 0.7
-matplotlib.rcParams.update({"font.size": 15})
+matplotlib.rcParams.update({"font.size": 20})
 
 def get_experiment_filter(average_transfer_methods: bool):
     def parse_transfer_algorithm_name(metadata):
@@ -132,8 +132,9 @@ def plot_result_benchmark(
         ax.set_xlabel("Wallclock time")
         
         # Adjust legend if there are many methods
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.legend(loc='upper center', fontsize=10)
         ax.set_title(title)
+        ax.grid(True, which="major", axis="both")
     return ax
 
 
@@ -160,7 +161,7 @@ def plot_task_performance_over_time(
                 continue
         else:
             method_dict_filtered = method_dict
-            
+
         ax = plot_result_benchmark(
             t_range=t_range,
             method_dict=method_dict_filtered,
@@ -243,7 +244,7 @@ def merge_benchmark_results(results_dicts):
                         existing_method_dict[alg] = np.concatenate(
                             [existing_method_dict[alg], y_ranges], axis=0
                         )
-                        
+
     # Enforce uniform seed count across all methods and benchmarks
     all_shapes = [
         values.shape[0]
@@ -255,7 +256,7 @@ def merge_benchmark_results(results_dicts):
         for bench, (t_range, method_dict) in merged.items():
             for alg, y_ranges in method_dict.items():
                 method_dict[alg] = y_ranges[:min_seeds]
-                
+
     return merged
 
 
@@ -272,7 +273,7 @@ def plot_ranks(
 ):
     plt.figure(figsize=(10, 6))
     ys = np.nanmean(ranks.reshape(benchmark_results.shape), axis=(1, 2))
-    
+
     if t_range is not None:
         xs = t_range
     else:
@@ -280,7 +281,7 @@ def plot_ranks(
             xs = np.linspace(1/ys.shape[-1], 1, ys.shape[-1])
         else:
             xs = np.linspace(0, 1, ys.shape[-1])
-        
+
     for i, method in enumerate(methods_to_show):
         color = color_dict.get(method) if color_dict else None
         plt.plot(
@@ -304,9 +305,9 @@ def plot_ranks(
             plt.xlim(xs[0], xs[-1])
         else:
             plt.xlim(0, 1)
-    plt.grid()
+    plt.grid(True, which="major", axis="both")
     plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(loc='upper center', fontsize=10)
     plt.tight_layout()
     plt.savefig(result_folder / f"{title}_rank.pdf", bbox_inches='tight')
     plt.close()
@@ -335,18 +336,18 @@ def stack_benchmark_results(
         benchmark_results = []
         for benchmark in benchmarks_family:
             benchmark_result = []
-            
+
             valid_arrays = list(benchmark_results_dict[benchmark][1].values())
             if not valid_arrays:
                 continue
             shape = valid_arrays[0].shape
-            
+
             for method in methods_to_keep:
                 if method in benchmark_results_dict[benchmark][1]:
                     benchmark_result.append(benchmark_results_dict[benchmark][1][method])
                 else:
                     benchmark_result.append(np.full(shape, np.nan))
-                    
+
             benchmark_result = np.stack(benchmark_result)
             benchmark_results.append(benchmark_result)
 
@@ -354,13 +355,13 @@ def stack_benchmark_results(
             continue
 
         benchmark_results = np.stack(benchmark_results)
-        
+
         if mode == "max":
             benchmark_results *= -1
-        
+
         # (num_methods, num_benchmarks, num_min_seeds, num_time_steps)
         res[benchmark_family] = benchmark_results.swapaxes(0, 1)
-        
+
         family_t_ranges = [benchmark_results_dict[benchmark][0] for benchmark in benchmarks_family]
         t_ranges[benchmark_family] = np.mean(family_t_ranges, axis=0)
 
@@ -403,9 +404,9 @@ def generate_rank_results(
 
     all_results = np.concatenate(list(stacked_benchmark_results.values()), axis=1)
     all_ranks = pd.DataFrame(all_results.reshape(len(all_results), -1)).rank()
-    
+
     all_t_ranges = np.mean(list(stacked_t_ranges.values()), axis=0) if stacked_t_ranges else None
-    
+
     plot_ranks(
         all_ranks.values,
         all_results,
@@ -433,7 +434,7 @@ def plot_average_normalized_regret(
 ):
     import warnings
     normalized_regrets = []
-    
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
         for benchmark_family, benchmark_results in stacked_benchmark_results.items():
@@ -444,15 +445,15 @@ def plot_average_normalized_regret(
             diff[diff == 0] = 1.0
             normalized_regret = (benchmark_results - benchmark_results_best) / diff
             normalized_regrets.append(normalized_regret)
-    
+
         if not normalized_regrets:
             return
-            
+
         normalized_regrets = np.concatenate(normalized_regrets, axis=1)
-    
+
         avg_regret = np.nanmean(normalized_regrets, axis=(1, 2))
         std_regret = np.nanmean(np.nanstd(normalized_regrets, axis=2), axis=1) if show_ci else None
-        
+
         all_t_ranges = np.mean(list(stacked_t_ranges.values()), axis=0) if stacked_t_ranges else None
 
     if ax is None:
@@ -461,12 +462,12 @@ def plot_average_normalized_regret(
         renamed_algorithm = rename_dict.get(algorithm, algorithm)
         mean = avg_regret[i]
         color = color_dict.get(algorithm) if color_dict else None
-        
+
         if all_t_ranges is not None:
             xs = all_t_ranges
         else:
             xs = np.arange(1, len(mean) + 1) / len(mean) if x_log_scale else np.arange(len(mean)) / len(mean)
-        
+
         ax.plot(
             xs,
             mean,
@@ -501,10 +502,10 @@ def plot_average_normalized_regret(
         else:
             plt.xlim(0, 1)
     # plt.ylim(6e-4, 1e-1)
-    plt.grid()
+    plt.grid(True, which="major", axis="both")
     if title is not None:
         plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(loc='upper center', fontsize=10)
     plt.tight_layout()
     plt.savefig(result_folder / f"{title if title else 'Normalized-regret'}.pdf", bbox_inches='tight')
     plt.close()
@@ -565,13 +566,13 @@ if __name__ == "__main__":
     num_time_steps = 100
 
     all_results_dicts = []
-    
+
     experiment_filter = get_experiment_filter(args.average_transfer_methods)
 
     for path_str in args.paths:
         path = Path(path_str)
         assert path.exists(), f"Path {path} does not exist"
-        
+
         with catchtime(f"load benchmark results from {path}"):
             benchmark_results = load_and_cache(
                 path=path,
@@ -597,7 +598,7 @@ if __name__ == "__main__":
     all_methods = set()
     for bench, (t_range, method_dict) in merged_results.items():
         all_methods.update(method_dict.keys())
-    
+
     if args.methods_to_show:
         methods_to_show = []
         for m in all_methods:
@@ -606,7 +607,7 @@ if __name__ == "__main__":
         methods_to_show = sorted(methods_to_show)
     else:
         methods_to_show = sorted(list(all_methods))
-    
+
     print(f"Total methods to plot ({len(methods_to_show)}):")
     for m in methods_to_show:
         print(f" - {m}")
@@ -627,11 +628,11 @@ if __name__ == "__main__":
         "ASHACQR": "tab:cyan",
         "ASHABORE": "tab:orange",
     }
-    
+
     cmap = plt.get_cmap("tab20")
     color_dict = {}
     fallback_idx = 0
-    
+
     for m in methods_to_show:
         assigned_color = None
         for base_name, color in sorted(HARDCODED_COLORS.items(), key=lambda x: len(x[0]), reverse=True):
@@ -643,9 +644,9 @@ if __name__ == "__main__":
             fallback_idx += 1
         color_dict[m] = assigned_color
 
-    result_folder = figure_folder(Path("figures") / "max")
+    result_folder = figure_folder(Path("figures") / "single_bbomix")
     result_folder.mkdir(parents=True, exist_ok=True)
-    
+
     # Rename dict can be empty to use raw names
     rename_dict = {
         "BoundingBox": "Bounding Box",
@@ -660,7 +661,7 @@ if __name__ == "__main__":
         benchmark_families=benchmark_families,
         mode=mode,
     )
-    
+
     if len(stacked_benchmark_results) > 0:
         with catchtime("generating rank table"):
             generate_rank_results(

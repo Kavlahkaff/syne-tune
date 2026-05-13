@@ -102,8 +102,8 @@ ARCHITECTURE_CONFIG_SPACES = {
     },
 }
 
-RESULTS_ROOT = Path("./autoencodix_results")
-
+#CHANGE TO YOUR LOCAL PATH
+RESULTS_ROOT = Path("./bbomix_results")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ def _fill_objectives(
 
 # ── Main conversion entry point ───────────────────────────────────────────────
 
-def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
+def generate_bbomix_from_json(results_root: Path = RESULTS_ROOT) -> None:
     with catchtime("loading JSON results"):
         all_records = load_json_results(results_root)
 
@@ -392,7 +392,7 @@ def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
 
         # Serialize one blackbox per (architecture, dataset) pair.
         for dataset_prefix, bb_dict in dataset_bb_dicts.items():
-            blackbox_name = f"autoencodix_{architecture}_{dataset_prefix}"
+            blackbox_name = f"bbomix_{architecture}_{dataset_prefix}"
             with catchtime(f"  serializing {blackbox_name}"):
                 serialize(
                     bb_dict=bb_dict,
@@ -408,10 +408,10 @@ def generate_autoencodix_from_json(results_root: Path = RESULTS_ROOT) -> None:
 
 # ── Recipe classes ────────────────────────────────────────────────────────────
 
-class AutoencodixJsonRecipe(BlackboxRecipe):
+class BBOmixJsonRecipe(BlackboxRecipe):
     def __init__(self, architecture: str, dataset: str):
         super().__init__(
-            name=f"autoencodix_{architecture}_{dataset}",
+            name=f"BBOmix_{architecture}_{dataset}",
             cite_reference=(
                 "AUTOENCODIX: A generalized and versatile framework to train and "
                 "evaluate autoencoders for biological representation learning and "
@@ -423,27 +423,27 @@ class AutoencodixJsonRecipe(BlackboxRecipe):
         self.dataset = dataset
 
     def _generate_on_disk(self) -> None:
-        generate_autoencodix_from_json()
+        generate_bbomix_from_json()
 
 
 def _make_recipe(class_name: str, architecture: str, dataset: str):
     return type(
         class_name,
-        (AutoencodixJsonRecipe,),
-        {"__init__": lambda self, _a=architecture, _d=dataset: AutoencodixJsonRecipe.__init__(self, _a, _d)},
+        (BBOmixJsonRecipe,),
+        {"__init__": lambda self, _a=architecture, _d=dataset: BBOmixJsonRecipe.__init__(self, _a, _d)},
     )
 
 
-AutoEncodixVanillixTcgaJsonRecipe     = _make_recipe("AutoEncodixVanillixTcgaJsonRecipe",     "vanillix",      "tcga")
-AutoEncodixVanillixSchcJsonRecipe     = _make_recipe("AutoEncodixVanillixSchcJsonRecipe",     "vanillix",      "schc")
-AutoEncodixVarixTcgaJsonRecipe        = _make_recipe("AutoEncodixVarixTcgaJsonRecipe",        "varix",         "tcga")
-AutoEncodixVarixSchcJsonRecipe        = _make_recipe("AutoEncodixVarixSchcJsonRecipe",        "varix",         "schc")
-AutoEncodixOntixTcgaJsonRecipe        = _make_recipe("AutoEncodixOntixTcgaJsonRecipe",        "ontix",         "tcga")
-AutoEncodixOntixSchcJsonRecipe        = _make_recipe("AutoEncodixOntixSchcJsonRecipe",        "ontix",         "schc")
-AutoEncodixDisentanglixTcgaJsonRecipe = _make_recipe("AutoEncodixDisentanglixTcgaJsonRecipe", "disentanglix",  "tcga")
-AutoEncodixDisentanglixSchcJsonRecipe = _make_recipe("AutoEncodixDisentanglixSchcJsonRecipe", "disentanglix",  "schc")
+BBOmixVanillixSchcJsonRecipe     = _make_recipe("BBOmixVanillixSchcJsonRecipe",     "vanillix",      "schc")
+BBOmixVanillixTcgaJsonRecipe     = _make_recipe("BBOmixVanillixTcgaJsonRecipe",     "vanillix",      "tcga")
+BBOmixVarixTcgaJsonRecipe        = _make_recipe("BBOmixVarixTcgaJsonRecipe",        "varix",         "tcga")
+BBOmixVarixSchcJsonRecipe        = _make_recipe("BBOmixVarixSchcJsonRecipe",        "varix",         "schc")
+BBOmixOntixTcgaJsonRecipe        = _make_recipe("BBOmixOntixTcgaJsonRecipe",        "ontix",         "tcga")
+BBOmixOntixSchcJsonRecipe        = _make_recipe("BBOmixOntixSchcJsonRecipe",        "ontix",         "schc")
+BBOmixDisentanglixTcgaJsonRecipe = _make_recipe("BBOmixDisentanglixTcgaJsonRecipe", "disentanglix",  "tcga")
+BBOmixDisentanglixSchcJsonRecipe = _make_recipe("BBOmixDisentanglixSchcJsonRecipe", "disentanglix",  "schc")
 
 
 
 if __name__ == "__main__":
-    generate_autoencodix_from_json()
+    generate_bbomix_from_json()

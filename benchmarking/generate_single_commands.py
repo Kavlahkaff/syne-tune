@@ -21,16 +21,22 @@ if __name__ == "__main__":
     n_workers = args.n_workers
     output_file = args.output_file
 
-    # The 4 methods requested by the user
+    # methods
     methods_selected = [
+        #MF
         Methods.BOHB,
         Methods.ASHA,
         Methods.ASHACQR,
         Methods.ASHABORE,
+        #SF
+        Methods.BORE,
+        Methods.CQR,
+        Methods.REA,
+        Methods.TPE,
+        Methods.RS,
     ]
 
     benchmarks_selected = list(benchmark_definitions.keys())
-
     commands = []
     for method in methods_selected:
         assert method in methods, f"{method} not in {methods}"

@@ -60,7 +60,7 @@ def run(
 
         print(f"Starting experiment ({method}/{benchmark_name}/{seed})")
 
-        if "autoencodix" in benchmark.blackbox_name:
+        if "bbomix" in benchmark.blackbox_name:
             parts = benchmark.blackbox_name.split("_")
             target_arch = parts[1]
             test_dataset = parts[2]
@@ -78,10 +78,10 @@ def run(
         extra_bb_dicts = {}
         
         # 1. Add other dataset for the SAME architecture
-        if all_datasets and "autoencodix" in benchmark.blackbox_name:
+        if all_datasets and "bbomix" in benchmark.blackbox_name:
             other_ds = "tcga" if test_dataset == "schc" else "schc"
             arch_label = f"{target_arch}_{other_ds}"
-            arch_bb_name = f"autoencodix_{target_arch}_{other_ds}"
+            arch_bb_name = f"bbomix_{target_arch}_{other_ds}"
             extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
             
         # 2. Add extra architectures
@@ -90,7 +90,7 @@ def run(
                 continue
             for ds in all_datasets_list:
                 arch_label = f"{arch}_{ds}"
-                arch_bb_name = f"autoencodix_{arch}_{ds}" if "autoencodix" in benchmark.blackbox_name else arch
+                arch_bb_name = f"bbomix_{arch}_{ds}" if "bbomix" in benchmark.blackbox_name else arch
                 extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
 
         transfer_learning_evaluations = load_transfer_learning_evaluations(
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     benchmark_names = (
         [args.benchmark]
         if args.benchmark is not None
-        else [k for k in benchmark_definitions.keys() if "autoencodix" in k]
+        else [k for k in benchmark_definitions.keys() if "bbomix" in k]
     )
     
     run(

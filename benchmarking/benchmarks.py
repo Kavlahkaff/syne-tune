@@ -14,6 +14,7 @@ class BenchmarkDefinition:
     surrogate: str | None = None
     surrogate_kwargs: dict | None = None
     datasets: list[str] | None = None
+    max_num_trials_finished: int | None = None
 
 
 n_full_evals = 100
@@ -93,14 +94,14 @@ def hpob_benchmark(blackbox_name: str, dataset_name: str):
     )
 
 
-def autoencodix_benchmark(blackbox_name: str, dataset_name: str):
+def bbomix_benchmark(blackbox_name: str, dataset_name: str):
     return BenchmarkDefinition(
         max_wallclock_time=72000,
         #max_num_evaluations=300*n_full_evals,
         n_workers=1,
         elapsed_time_attr="metric_elapsed_time",
-        metric="metric_valid_recon_loss",
-        mode="min",
+        metric="metric_avg_ml_task_performance",
+        mode="max",
         blackbox_name=blackbox_name,
         dataset_name=dataset_name,
         surrogate="KNeighborsRegressor",
@@ -115,26 +116,26 @@ benchmark_definitions = {
 
 
 
-autoencodix_schc_search_spaces = [
+bbomix_schc_search_spaces = [
     "vanillix_schc",
     "varix_schc",
     "ontix_schc",
     "disentanglix_schc",
     ]
 
-autoencodix_tcga_search_spaces = [
+bbomix_tcga_search_spaces = [
     "vanillix_tcga",
     "varix_tcga",
     "ontix_tcga",
     "disentanglix_tcga",
     ]
 
-autoencodix_schc_tasks = [
+bbomix_schc_tasks = [
     "schc_RNA_METH_CLIN",
     "schc_METH_CLIN",
     "schc_RNA_CLIN",
 ]
-autoencodix_tcga_tasks = [
+bbomix_tcga_tasks = [
     "tcga_RNA_CLIN",
     "tcga_METH_CLIN",
     "tcga_DNA_CLIN",
@@ -142,45 +143,45 @@ autoencodix_tcga_tasks = [
 ]
 
 
-for task in autoencodix_schc_tasks:
-    for search_space in autoencodix_schc_search_spaces:
+for task in bbomix_schc_tasks:
+    for search_space in bbomix_schc_search_spaces:
         if "ontix" in search_space:
             for ontology in ["reactome", "chromosome"]:
                 benchmark_definitions[
-                    f"autoencodix-{search_space}-"
+                    f"bbomix-{search_space}-"
                     + task.replace("_", "-").replace(".", "")
                     + "-"
                     + ontology
-                ] = autoencodix_benchmark(
-                    blackbox_name=f"autoencodix_{search_space}",
+                ] = bbomix_benchmark(
+                    blackbox_name=f"bbomix_{search_space}",
                     dataset_name=task + "_" + ontology,
                 )
         else:
             benchmark_definitions[
-                f"autoencodix-{search_space}-" + task.replace("_", "-").replace(".", "")
-            ] = autoencodix_benchmark(
-                blackbox_name=f"autoencodix_{search_space}",
+                f"bbomix-{search_space}-" + task.replace("_", "-").replace(".", "")
+            ] = bbomix_benchmark(
+                blackbox_name=f"bbomix_{search_space}",
                 dataset_name=task,
             )
 
-for task in autoencodix_tcga_tasks:
-    for search_space in autoencodix_tcga_search_spaces:
+for task in bbomix_tcga_tasks:
+    for search_space in bbomix_tcga_search_spaces:
         if "ontix" in search_space:
             for ontology in ["reactome", "chromosome"]:
                 benchmark_definitions[
-                    f"autoencodix-{search_space}-"
+                    f"bbomix-{search_space}-"
                     + task.replace("_", "-").replace(".", "")
                     + "-"
                     + ontology
-                ] = autoencodix_benchmark(
-                    blackbox_name=f"autoencodix_{search_space}",
+                ] = bbomix_benchmark(
+                    blackbox_name=f"bbomix_{search_space}",
                     dataset_name=task + "_" + ontology,
                 )
         else:
             benchmark_definitions[
-                f"autoencodix-{search_space}-" + task.replace("_", "-").replace(".", "")
-            ] = autoencodix_benchmark(
-                blackbox_name=f"autoencodix_{search_space}",
+                f"bbomix_{search_space}-" + task.replace("_", "-").replace(".", "")
+            ] = bbomix_benchmark(
+                blackbox_name=f"bbomix_{search_space}",
                 dataset_name=task,
             )
 
