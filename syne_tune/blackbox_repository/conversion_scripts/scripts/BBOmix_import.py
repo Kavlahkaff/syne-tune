@@ -411,7 +411,7 @@ def generate_bbomix_from_json(results_root: Path = RESULTS_ROOT) -> None:
 class BBOmixJsonRecipe(BlackboxRecipe):
     def __init__(self, architecture: str, dataset: str):
         super().__init__(
-            name=f"BBOmix_{architecture}_{dataset}",
+            name=f"bbomix_{architecture}_{dataset}",
             cite_reference=(
                 "AUTOENCODIX: A generalized and versatile framework to train and "
                 "evaluate autoencoders for biological representation learning and "
