@@ -38,6 +38,8 @@ def run(
     n_workers: int = 1,
     all_datasets: bool = False,
     cross_arch_only: bool = False,
+    cross_dataset_only: bool = False,
+    match_modality_only: bool = False,
     extra_architectures: list = None,
 ):
     logging.getLogger("syne_tune.optimizer.schedulers").setLevel(logging.WARNING)
@@ -74,21 +76,28 @@ def run(
 
         bb_dict = load_blackbox(benchmark.blackbox_name, local_files_only=True)
         
-        all_datasets_list = ["tcga", "schc"] if all_datasets else [test_dataset]
+        if cross_dataset_only:
+            dataset_list = ["tcga"] if test_dataset == "schc" else ["schc"]
+        elif all_datasets:
+            dataset_list = ["tcga", "schc"]
+        else:
+            dataset_list = [test_dataset]
+
         extra_bb_dicts = {}
         
         # 1. Add other dataset for the SAME architecture
-        if all_datasets and "bbomix" in benchmark.blackbox_name:
-            other_ds = "tcga" if test_dataset == "schc" else "schc"
-            arch_label = f"{target_arch}_{other_ds}"
-            arch_bb_name = f"bbomix_{target_arch}_{other_ds}"
-            extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
+        if (all_datasets or cross_dataset_only) and "bbomix" in benchmark.blackbox_name:
+            if not cross_arch_only:
+                other_ds = "tcga" if test_dataset == "schc" else "schc"
+                arch_label = f"{target_arch}_{other_ds}"
+                arch_bb_name = f"bbomix_{target_arch}_{other_ds}"
+                extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
             
         # 2. Add extra architectures
         for arch in extra_architectures:
             if arch == target_arch:
                 continue
-            for ds in all_datasets_list:
+            for ds in dataset_list:
                 arch_label = f"{arch}_{ds}"
                 arch_bb_name = f"bbomix_{arch}_{ds}" if "bbomix" in benchmark.blackbox_name else arch
                 extra_bb_dicts[arch_label] = load_blackbox(arch_bb_name, local_files_only=True)
@@ -98,9 +107,11 @@ def run(
             test_task=test_task,
             metric=metric,
             bb_dict=bb_dict,
-            same_dataset_only=not all_datasets,
+            same_dataset_only=(not all_datasets and not cross_dataset_only),
             extra_bb_dicts=extra_bb_dicts if extra_bb_dicts else None,
             cross_arch_only=cross_arch_only,
+            cross_dataset_only=cross_dataset_only,
+            match_modality_only=match_modality_only,
         )
 
         config_space = bb_dict[test_task].configuration_space
@@ -171,8 +182,9 @@ def run(
         
         # Determine flags for naming
         flags = "".join([
-            "A" if all_datasets else "a",
+            "A" if all_datasets else ("D" if cross_dataset_only else "a"),
             "X" if cross_arch_only else "x",
+            "M" if match_modality_only else "m",
         ])
         
         if method == "ZeroShot":
@@ -244,6 +256,8 @@ if __name__ == "__main__":
     
     parser.add_argument("--all_datasets", action="store_true")
     parser.add_argument("--cross_arch_only", action="store_true")
+    parser.add_argument("--cross_dataset_only", action="store_true")
+    parser.add_argument("--match_modality_only", action="store_true")
     parser.add_argument("--extra_architectures", nargs="*", default=[])
 
     args, _ = parser.parse_known_args()
@@ -267,5 +281,7 @@ if __name__ == "__main__":
         n_workers=args.n_workers,
         all_datasets=args.all_datasets,
         cross_arch_only=args.cross_arch_only,
+        cross_dataset_only=args.cross_dataset_only,
+        match_modality_only=args.match_modality_only,
         extra_architectures=args.extra_architectures,
     )

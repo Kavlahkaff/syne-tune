@@ -470,7 +470,7 @@ def plot_proxy_correlation(df: pd.DataFrame, out_dir: Path) -> None:
             t_clean = t.replace("clin", "").strip('_')
         clean_labels.append(t_clean.replace("_", "\n"))
         
-    ax_a.set_xticklabels(clean_labels, rotation=45, ha="right")
+    ax_a.set_xticklabels(clean_labels, rotation=0, ha="center")
     ax_a.set_yticklabels([a.capitalize() for a in archs])
     
     # Force cells to be square

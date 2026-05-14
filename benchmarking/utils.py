@@ -133,6 +133,8 @@ def load_transfer_learning_evaluations(
     same_dataset_only: bool = True,
     extra_bb_dicts: dict[str, dict[str, BlackboxTabular]] | None = None,
     cross_arch_only: bool = False,
+    cross_dataset_only: bool = False,
+    match_modality_only: bool = False,
 ) -> dict[str, TransferLearningTaskEvaluations]:
     """
     Build transfer-learning evaluations for all source tasks.
@@ -185,14 +187,17 @@ def load_transfer_learning_evaluations(
 
     # Collect all (task, blackbox, is_same_architecture) triples to iterate
     source_candidates: list[tuple[str, BlackboxTabular, bool]] = []
-    if not cross_arch_only:
+    if not cross_arch_only and not cross_dataset_only:
         source_candidates = [
             (task, bb, True)
             for task, bb in bb_dict.items()
             if task != test_task
         ]
     else:
-        logger.info("cross_arch_only=True: skipping all same-architecture source tasks.")
+        if cross_arch_only:
+            logger.info("cross_arch_only=True: skipping all same-architecture source tasks.")
+        if cross_dataset_only:
+            logger.info("cross_dataset_only=True: skipping all same-dataset source tasks.")
     if extra_bb_dicts:
         for arch_label, ext_bb in extra_bb_dicts.items():
             arch_name = arch_label.split("_")[0]
@@ -206,6 +211,7 @@ def load_transfer_learning_evaluations(
 
     transfer_evals: dict[str, TransferLearningTaskEvaluations] = {}
     test_dataset = test_task.split("_")[0]
+    target_modality = test_task.split("_", 1)[1] if "_" in test_task else ""
 
     for task_key, bb, same_arch in source_candidates:
         # Dataset-prefix filtering
@@ -217,6 +223,21 @@ def load_transfer_learning_evaluations(
                 task_key, test_dataset,
             )
             continue
+        if cross_dataset_only and task_dataset == test_dataset:
+            logger.debug(
+                "Skipping same-dataset source '%s' (test dataset: '%s')",
+                task_key, test_dataset,
+            )
+            continue
+
+        if match_modality_only:
+            source_modality = raw_task.split("_", 1)[1] if "_" in raw_task else ""
+            if source_modality != target_modality:
+                logger.debug(
+                    "Skipping mismatched modality source '%s' (target modality: '%s')",
+                    task_key, target_modality,
+                )
+                continue
 
         # ── Metric index for this source blackbox ─────────────────────────────
         # Different architectures may order objectives differently.

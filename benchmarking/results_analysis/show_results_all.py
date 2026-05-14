@@ -36,13 +36,19 @@ def get_experiment_filter(average_transfer_methods: bool):
         tuner_name = metadata.get("tuner_name", "")
         alg = metadata.get("algorithm", "")
         if alg in ["BoundingBox", "QuantileTransfer", "ZeroShot"] and tuner_name:
-            if average_transfer_methods:
-                metadata["algorithm"] = alg
-                return True
             parts = tuner_name.split("-")
             try:
                 flags = parts[-3]
                 extra_str = parts[-2]
+                
+                is_all = '+' in extra_str
+                
+                if average_transfer_methods:
+                    if is_all:
+                        metadata["algorithm"] = f"{alg} (All Archs)"
+                    else:
+                        metadata["algorithm"] = alg
+                    return True
                 
                 if flags.startswith('S'):
                     flags = flags[1:]
@@ -61,7 +67,8 @@ def get_experiment_filter(average_transfer_methods: bool):
                     
                 metadata["algorithm"] = f"{alg} - {variation}"
             except IndexError:
-                pass
+                if average_transfer_methods:
+                    metadata["algorithm"] = alg
         return True
     return parse_transfer_algorithm_name
 
@@ -106,6 +113,7 @@ def plot_result_benchmark(
             mean = np.nanmean(y_ranges, axis=0)
             std = np.nanstd(y_ranges, axis=0, ddof=1) / np.sqrt(y_ranges.shape[0])
             color = color_dict.get(algorithm) if color_dict else None
+            linestyle = "--" if "(All Archs)" in algorithm else "-"
             ax.fill_between(
                 t_range,
                 mean - std,
@@ -120,6 +128,7 @@ def plot_result_benchmark(
                 color=color,
                 alpha=alpha,
                 lw=lw,
+                linestyle=linestyle,
             )
 
             agg_results[algorithm] = mean
@@ -284,6 +293,7 @@ def plot_ranks(
 
     for i, method in enumerate(methods_to_show):
         color = color_dict.get(method) if color_dict else None
+        linestyle = "--" if "(All Archs)" in method else "-"
         plt.plot(
             xs,
             ys[i],
@@ -291,6 +301,7 @@ def plot_ranks(
             color=color,
             alpha=alpha,
             lw=lw,
+            linestyle=linestyle,
         )
     plt.xlabel("Wallclock time" if t_range is not None else "% Budget Used")
     plt.ylabel("Method rank")
@@ -462,6 +473,7 @@ def plot_average_normalized_regret(
         renamed_algorithm = rename_dict.get(algorithm, algorithm)
         mean = avg_regret[i]
         color = color_dict.get(algorithm) if color_dict else None
+        linestyle = "--" if "(All Archs)" in algorithm else "-"
 
         if all_t_ranges is not None:
             xs = all_t_ranges
@@ -475,6 +487,7 @@ def plot_average_normalized_regret(
             color=color,
             lw=lw,
             alpha=alpha,
+            linestyle=linestyle,
         )
         if show_ci:
             std = std_regret[i]
@@ -650,8 +663,11 @@ if __name__ == "__main__":
     # Rename dict can be empty to use raw names
     rename_dict = {
         "BoundingBox": "Bounding Box",
+        "BoundingBox (All Archs)": "Bounding Box (All)",
         "QuantileTransfer": "Quantile Transfer",
+        "QuantileTransfer (All Archs)": "Quantile Transfer (All)",
         "ZeroShot": "Zero Shot",
+        "ZeroShot (All Archs)": "Zero Shot (All)",
         "RS": "Random Search",
     }
 
