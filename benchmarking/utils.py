@@ -168,7 +168,9 @@ def load_transfer_learning_evaluations(
     if bb_dict is None:
         bb_dict = load_blackbox(blackbox_name)
 
-    if "autoencodix" in blackbox_name:
+    if "BBOmix" in blackbox_name or "bbomix" in blackbox_name:
+        target_arch = blackbox_name.split("_")[1]
+    elif "autoencodix" in blackbox_name:
         target_arch = blackbox_name.split("_")[1]
     else:
         target_arch = blackbox_name
