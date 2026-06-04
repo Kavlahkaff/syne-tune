@@ -107,6 +107,7 @@ ARCHITECTURE_CONFIG_SPACES = {
 }
 
 # CHANGE TO YOUR LOCAL PATH
+#TODO Add download function, once
 RESULTS_ROOT = Path("./bbomix_results")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -427,7 +428,7 @@ class BBOmixJsonRecipe(BlackboxRecipe):
             cite_reference=(
                 "BBOmix: A Tabular Benchmark for Hyperparameter Optimization "
                 "of Unsupervised Biological Representation Learning, "
-                "Luca Thale-Bombien, Jan Ewald, Ralf Koenig, Aaron Klein. Arxiv, 2026"
+                "Luca Thale-Bombien, Jan Ewald, Ralf Koenig, Aaron Klein., 2026"
             ),
         )
         self.architecture = architecture
