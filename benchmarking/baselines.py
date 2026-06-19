@@ -131,9 +131,14 @@ methods = {
 
 if __name__ == "__main__":
     # Run a loop that initializes all schedulers on all benchmark to see if they all work
-    from benchmarking.benchmarks import (
-        benchmark_definitions,
-    )
+    try:
+        from benchmarking.benchmarks import (
+            benchmark_definitions,
+        )
+    except ImportError:
+        from benchmarks import (
+            benchmark_definitions,
+        )
 
     print(f"Checking initialization of {list(methods.keys())[::-1]}")
 
