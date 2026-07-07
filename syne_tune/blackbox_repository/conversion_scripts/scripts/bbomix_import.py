@@ -1,3 +1,4 @@
+"""Conversion script for BBOmix datasets."""
 import json
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from syne_tune.blackbox_repository.conversion_scripts.scripts import (
     time_attr,
 )
 from syne_tune.blackbox_repository.conversion_scripts.utils import repository_path
-from syne_tune.config_space import choice, loguniform, randint, uniform
+from syne_tune.config_space import loguniform, randint, uniform
 from syne_tune.util import catchtime
 
 # ── Metric name constants (all with metric_ prefix) ───────────────────────────
@@ -186,7 +187,7 @@ def load_json_results(results_root: Path) -> dict[tuple, list[dict]]:
                             continue
 
                         for json_file in seed_dir.glob("*.json"):
-                            with open(json_file) as fh:
+                            with open(json_file, encoding="utf-8") as fh:
                                 records[key].append(json.load(fh))
                             n_files += 1
 
@@ -329,19 +330,17 @@ def _fill_objectives(
 
 # ── Main conversion entry point ───────────────────────────────────────────────
 
-_GENERATION_DONE = False
-
 
 def generate_bbomix_from_json(results_root: Path = None) -> None:
-    global _GENERATION_DONE
+    """Download (if needed) and serialize the BBOmix datasets into blackboxes."""
     if results_root is None:
         try:
             from huggingface_hub import snapshot_download
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "Please install huggingface_hub to automatically download the BBOmix dataset: "
                 "`pip install huggingface_hub`"
-            )
+            ) from exc
         import zipfile
 
         results_root = repository_path / "bbomix_raw"
@@ -450,13 +449,13 @@ def generate_bbomix_from_json(results_root: Path = None) -> None:
                 )
             print(f"  Saved {blackbox_name}  tasks: {sorted(bb_dict)}")
 
-    _GENERATION_DONE = True
-
 
 # ── Recipe classes ────────────────────────────────────────────────────────────
 
 
 class BBOmixJsonRecipe(BlackboxRecipe):
+    """Recipe for generating a BBOmix blackbox from JSON results."""
+
     def __init__(self, architecture: str, dataset: str):
         super().__init__(
             name=f"bbomix_{architecture}_{dataset}",
@@ -473,11 +472,9 @@ class BBOmixJsonRecipe(BlackboxRecipe):
         if not (repository_path / self.name).exists():
             generate_bbomix_from_json()
         else:
-            global _GENERATION_DONE
-            if not _GENERATION_DONE:
-                print(
-                    f"Blackbox {self.name} already exists in {repository_path / self.name}. Skipping generation."
-                )
+            print(
+                f"Blackbox {self.name} already exists in {repository_path / self.name}. Skipping generation."
+            )
 
 
 def _make_recipe(class_name: str, architecture: str, dataset: str):
