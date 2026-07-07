@@ -219,7 +219,9 @@ def _build_arch_index(
         key = _hp_key(record, hp_keys)
         seed_configs.setdefault(record.get("SEED"), set()).add(key)
         if key not in hp_rows:
-            hp_rows[key] = {k: record.get("HYPERPARAMETERS", {}).get(k) for k in hp_keys}
+            hp_rows[key] = {
+                k: record.get("HYPERPARAMETERS", {}).get(k) for k in hp_keys
+            }
 
     all_seeds = sorted(seed_configs)
     shared_configs = set.intersection(*(seed_configs[s] for s in all_seeds))
@@ -329,6 +331,7 @@ def _fill_objectives(
 
 _GENERATION_DONE = False
 
+
 def generate_bbomix_from_json(results_root: Path = None) -> None:
     global _GENERATION_DONE
     if results_root is None:
@@ -340,21 +343,23 @@ def generate_bbomix_from_json(results_root: Path = None) -> None:
                 "`pip install huggingface_hub`"
             )
         import zipfile
-        
+
         results_root = repository_path / "bbomix_raw"
         if not results_root.exists():
-            print("Downloading BBOmix dataset zip files from huggingface (autoencodix/BBOmix)...")
+            print(
+                "Downloading BBOmix dataset zip files from huggingface (autoencodix/BBOmix)..."
+            )
             download_dir = snapshot_download(
                 repo_id="autoencodix/BBOmix",
                 repo_type="dataset",
                 allow_patterns="*.zip",
-                max_workers=4
+                max_workers=4,
             )
-            
+
             results_root.mkdir(parents=True, exist_ok=True)
             for zip_path in Path(download_dir).glob("**/*.zip"):
                 print(f"Extracting {zip_path.name}...")
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
                     zip_ref.extractall(results_root)
         else:
             print(f"Raw data already extracted at {results_root}")
@@ -444,7 +449,7 @@ def generate_bbomix_from_json(results_root: Path = None) -> None:
                     },
                 )
             print(f"  Saved {blackbox_name}  tasks: {sorted(bb_dict)}")
-            
+
     _GENERATION_DONE = True
 
 
@@ -470,7 +475,9 @@ class BBOmixJsonRecipe(BlackboxRecipe):
         else:
             global _GENERATION_DONE
             if not _GENERATION_DONE:
-                print(f"Blackbox {self.name} already exists in {repository_path / self.name}. Skipping generation.")
+                print(
+                    f"Blackbox {self.name} already exists in {repository_path / self.name}. Skipping generation."
+                )
 
 
 def _make_recipe(class_name: str, architecture: str, dataset: str):
@@ -505,6 +512,7 @@ BBOmixDisentanglixSchcJsonRecipe = _make_recipe(
 
 if __name__ == "__main__":
     import logging
+
     logging.basicConfig(level=logging.INFO)
 
     recipes = [
