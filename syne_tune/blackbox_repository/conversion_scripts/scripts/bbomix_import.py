@@ -80,35 +80,32 @@ ONTOLOGY_ARCHITECTURES = {"ontix"}
 # ── Hyperparameter search spaces ──────────────────────────────────────────────
 
 _SHARED_HPS = {
-    "k_filter": choice([128, 256, 512, 1024, 2048, 4096]),
-    "n_layers": choice([2, 3, 4]),
-    "enc_factor": choice([1, 2, 3, 4]),
-    "batch_size": choice([32, 64, 128, 256]),
+    "k_filter": uniform(128, 4096),
+    "n_layers": uniform(2, 4),
+    "enc_factor": uniform(1, 4),
+    "batch_size": uniform(32, 256),
     "learning_rate": loguniform(1e-5, 1e-1),
     "drop_p": uniform(0, 0.9),
     "weight_decay": loguniform(1e-5, 1e-1),
 }
 
 ARCHITECTURE_CONFIG_SPACES = {
-    "vanillix": {**_SHARED_HPS, "latent_dim": choice([2, 4, 8, 16, 32, 64])},
+    "vanillix": {**_SHARED_HPS, "latent_dim": uniform(2, 64)},
     "varix": {
         **_SHARED_HPS,
         "beta": loguniform(0.001, 10),
-        "latent_dim": choice([2, 4, 8, 16, 32, 64]),
+        "latent_dim": uniform(2, 64),
     },
     "ontix": {**_SHARED_HPS, "beta": loguniform(0.0001, 1)},
     "disentanglix": {
         **_SHARED_HPS,
-        "latent_dim": choice([2, 4, 8, 16, 32, 64]),
+        "latent_dim": uniform(2, 64),
         "beta_mi": loguniform(0.001, 10.0),
         "beta_tc": loguniform(0.1, 10000),
         "beta_dimKL": loguniform(0.001, 10.0),
     },
 }
 
-# CHANGE TO YOUR LOCAL PATH
-#TODO Add download function, once
-RESULTS_ROOT = Path("./bbomix_results")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -159,11 +156,11 @@ def load_json_results(results_root: Path) -> dict[tuple, list[dict]]:
             continue
         architecture = arch_dir.name.lower()
 
-        for dataset_dir in sorted(arch_dir.iterdir()):
+        for dataset_dir in arch_dir.iterdir():
             if not dataset_dir.is_dir():
                 continue
 
-            for modalities_dir in sorted(dataset_dir.iterdir()):
+            for modalities_dir in dataset_dir.iterdir():
                 if not modalities_dir.is_dir():
                     continue
 
@@ -178,7 +175,7 @@ def load_json_results(results_root: Path) -> dict[tuple, list[dict]]:
                     key = (architecture, dataset_dir.name, task_modalities)
                     records.setdefault(key, [])
 
-                    for seed_dir in sorted(seed_parent.iterdir()):
+                    for seed_dir in seed_parent.iterdir():
                         if not seed_dir.is_dir() or not seed_dir.name.startswith(
                             "seed_"
                         ):
@@ -188,7 +185,7 @@ def load_json_results(results_root: Path) -> dict[tuple, list[dict]]:
                             print(f"  [SKIP] non-integer seed directory: {seed_dir}")
                             continue
 
-                        for json_file in sorted(seed_dir.glob("*.json")):
+                        for json_file in seed_dir.glob("*.json"):
                             with open(json_file) as fh:
                                 records[key].append(json.load(fh))
                             n_files += 1
@@ -205,13 +202,9 @@ def load_json_results(results_root: Path) -> dict[tuple, list[dict]]:
     return records
 
 
-def _extract_hps(record: dict, hp_keys: list[str]) -> dict:
-    """Extract hyperparameter values from a record's HYPERPARAMETERS block."""
-    return {k: record["HYPERPARAMETERS"][k] for k in hp_keys}
-
-
-def _hp_key(hp_row: dict) -> tuple:
-    return tuple(sorted(hp_row.items()))
+def _hp_key(record: dict, hp_keys: list[str]) -> tuple:
+    hps = record.get("HYPERPARAMETERS", {})
+    return tuple(hps.get(k) for k in hp_keys)
 
 
 def _build_arch_index(
@@ -223,11 +216,10 @@ def _build_arch_index(
     hp_rows: dict[tuple, dict] = {}
 
     for record in all_runs:
-        hp_row = _extract_hps(record, hp_keys)
-        key = _hp_key(hp_row)
-        seed_configs.setdefault(record["SEED"], set()).add(key)
+        key = _hp_key(record, hp_keys)
+        seed_configs.setdefault(record.get("SEED"), set()).add(key)
         if key not in hp_rows:
-            hp_rows[key] = hp_row
+            hp_rows[key] = {k: record.get("HYPERPARAMETERS", {}).get(k) for k in hp_keys}
 
     all_seeds = sorted(seed_configs)
     shared_configs = set.intersection(*(seed_configs[s] for s in all_seeds))
@@ -289,48 +281,84 @@ def _fill_objectives(
     obj_idx = {name: i for i, name in enumerate(objectives)}
     final_only_metrics = [m for m in objectives if m != METRIC_RECON_LOSS]
 
+    top_level_keys = []
+    per_task_keys = []
+    for m in final_only_metrics:
+        rk = _METRIC_TO_RECORD_KEY.get(m)
+        if rk is None:
+            continue
+        if rk in ("AVG_ML_TASK_PERFORMANCE", "RUNTIME_SECONDS"):
+            top_level_keys.append((obj_idx[m], rk))
+        else:
+            per_task_keys.append((obj_idx[m], rk))
+
+    recon_idx = obj_idx.get(METRIC_RECON_LOSS)
+
     for record in records:
-        hp_row = _extract_hps(record, hp_keys)
-        key = _hp_key(hp_row)
-        if key not in hp_index:
+        key = _hp_key(record, hp_keys)
+        hp_idx = hp_index.get(key)
+        if hp_idx is None:
             continue
 
-        hp_idx = hp_index[key]
-        s_idx = seed_to_idx[record["SEED"]]
-        loss_dict: dict[str, float] = record["loss_per_epoch"]
-        final_e = max(int(k) for k in loss_dict)  # 0-indexed final (e.g. 299)
+        s_idx = seed_to_idx[record.get("SEED")]
+        loss_dict: dict[str, float] = record.get("loss_per_epoch", {})
+        if not loss_dict:
+            continue
+        final_e = max(map(int, loss_dict.keys()))
 
-        if METRIC_RECON_LOSS in obj_idx:
+        if recon_idx is not None:
             for epoch_str, recon_loss in loss_dict.items():
-                e = int(epoch_str)  # 0..299
-                obj_array[hp_idx, s_idx, e, obj_idx[METRIC_RECON_LOSS]] = recon_loss
+                obj_array[hp_idx, s_idx, int(epoch_str), recon_idx] = recon_loss
 
-        per_task = record.get("PER_TASK_PERFORMANCE") or {}  # safe fallback
+        per_task = record.get("PER_TASK_PERFORMANCE", {})
 
-        for metric_name in final_only_metrics:
-            if metric_name not in obj_idx:
-                continue
-            record_key = _METRIC_TO_RECORD_KEY.get(metric_name)
-            if record_key is None:
-                print(
-                    f"  [WARN] No record key mapping for metric '{metric_name}'; skipping."
-                )
-                continue
-            if record_key in ("AVG_ML_TASK_PERFORMANCE", "RUNTIME_SECONDS"):
-                value = record.get(record_key)
-            else:
-                value = per_task.get(record_key)
-            if value is None:
-                continue
-            obj_array[hp_idx, s_idx, final_e, obj_idx[metric_name]] = value
+        for m_idx, rk in top_level_keys:
+            val = record.get(rk)
+            if val is not None:
+                obj_array[hp_idx, s_idx, final_e, m_idx] = val
+
+        for m_idx, rk in per_task_keys:
+            val = per_task.get(rk)
+            if val is not None:
+                obj_array[hp_idx, s_idx, final_e, m_idx] = val
 
     return obj_array
 
 
 # ── Main conversion entry point ───────────────────────────────────────────────
 
+_GENERATION_DONE = False
 
-def generate_bbomix_from_json(results_root: Path = RESULTS_ROOT) -> None:
+def generate_bbomix_from_json(results_root: Path = None) -> None:
+    global _GENERATION_DONE
+    if results_root is None:
+        try:
+            from huggingface_hub import snapshot_download
+        except ImportError:
+            raise ImportError(
+                "Please install huggingface_hub to automatically download the BBOmix dataset: "
+                "`pip install huggingface_hub`"
+            )
+        import zipfile
+        
+        results_root = repository_path / "bbomix_raw"
+        if not results_root.exists():
+            print("Downloading BBOmix dataset zip files from huggingface (autoencodix/BBOmix)...")
+            download_dir = snapshot_download(
+                repo_id="autoencodix/BBOmix",
+                repo_type="dataset",
+                allow_patterns="*.zip",
+                max_workers=4
+            )
+            
+            results_root.mkdir(parents=True, exist_ok=True)
+            for zip_path in Path(download_dir).glob("**/*.zip"):
+                print(f"Extracting {zip_path.name}...")
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(results_root)
+        else:
+            print(f"Raw data already extracted at {results_root}")
+
     with catchtime("loading JSON results"):
         all_records = load_json_results(results_root)
 
@@ -416,6 +444,8 @@ def generate_bbomix_from_json(results_root: Path = RESULTS_ROOT) -> None:
                     },
                 )
             print(f"  Saved {blackbox_name}  tasks: {sorted(bb_dict)}")
+            
+    _GENERATION_DONE = True
 
 
 # ── Recipe classes ────────────────────────────────────────────────────────────
@@ -437,6 +467,10 @@ class BBOmixJsonRecipe(BlackboxRecipe):
     def _generate_on_disk(self) -> None:
         if not (repository_path / self.name).exists():
             generate_bbomix_from_json()
+        else:
+            global _GENERATION_DONE
+            if not _GENERATION_DONE:
+                print(f"Blackbox {self.name} already exists in {repository_path / self.name}. Skipping generation.")
 
 
 def _make_recipe(class_name: str, architecture: str, dataset: str):
@@ -470,6 +504,9 @@ BBOmixDisentanglixSchcJsonRecipe = _make_recipe(
 
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
     recipes = [
         BBOmixVanillixSchcJsonRecipe,
         BBOmixVanillixTcgaJsonRecipe,
@@ -483,4 +520,4 @@ if __name__ == "__main__":
 
     for recipe in recipes:
         instance = recipe()
-        instance.generate(upload_on_hub=True)
+        instance.generate(upload_on_hub=False)
