@@ -15,7 +15,7 @@ from syne_tune.blackbox_repository.conversion_scripts.scripts import (
     time_attr,
 )
 from syne_tune.blackbox_repository.conversion_scripts.utils import repository_path
-from syne_tune.config_space import loguniform, randint, uniform
+from syne_tune.config_space import choice, loguniform, randint, uniform
 from syne_tune.util import catchtime
 
 # ── Metric name constants (all with metric_ prefix) ───────────────────────────
@@ -81,26 +81,26 @@ ONTOLOGY_ARCHITECTURES = {"ontix"}
 # ── Hyperparameter search spaces ──────────────────────────────────────────────
 
 _SHARED_HPS = {
-    "k_filter": uniform(128, 4096),
-    "n_layers": uniform(2, 4),
-    "enc_factor": uniform(1, 4),
-    "batch_size": uniform(32, 256),
+    "k_filter": choice([128, 256, 512, 1024, 2048, 4096]),
+    "n_layers": choice([2, 3, 4]),
+    "enc_factor": choice([1, 2, 3, 4]),
+    "batch_size": choice([32, 64, 128, 256]),
     "learning_rate": loguniform(1e-5, 1e-1),
     "drop_p": uniform(0, 0.9),
     "weight_decay": loguniform(1e-5, 1e-1),
 }
 
 ARCHITECTURE_CONFIG_SPACES = {
-    "vanillix": {**_SHARED_HPS, "latent_dim": uniform(2, 64)},
+    "vanillix": {**_SHARED_HPS, "latent_dim": choice([2, 4, 8, 16, 32, 64])},
     "varix": {
         **_SHARED_HPS,
         "beta": loguniform(0.001, 10),
-        "latent_dim": uniform(2, 64),
+        "latent_dim": choice([2, 4, 8, 16, 32, 64]),
     },
     "ontix": {**_SHARED_HPS, "beta": loguniform(0.0001, 1)},
     "disentanglix": {
         **_SHARED_HPS,
-        "latent_dim": uniform(2, 64),
+        "latent_dim": choice([2, 4, 8, 16, 32, 64]),
         "beta_mi": loguniform(0.001, 10.0),
         "beta_tc": loguniform(0.1, 10000),
         "beta_dimKL": loguniform(0.001, 10.0),
