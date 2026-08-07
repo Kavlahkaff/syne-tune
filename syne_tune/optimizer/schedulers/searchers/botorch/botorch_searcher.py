@@ -11,7 +11,7 @@ from syne_tune.optimizer.schedulers.searchers.utils import (
 )
 
 
-from torch import Tensor, random, randn_like, rand
+from torch import Tensor, random, rand
 from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_mll
 from botorch.models.transforms import Warp
@@ -51,7 +51,6 @@ class BoTorchSearcher(SingleObjectiveBaseSearcher):
     :param input_warping: Whether to apply input warping when fitting the GP.
         Defaults to ``True``
     :param double_precision: Whether to use double precision when fitting the GP.
-    :param noise_level: Standard deviation of Gaussian noise added to observations for numerical stability.
     :param num_raw_samples: Number of raw samples to use for initialization
         when optimizing the acquisition function. Defaults to 200
     :param num_restarts: Number of restarts to use when optimizing the
@@ -74,7 +73,6 @@ class BoTorchSearcher(SingleObjectiveBaseSearcher):
         max_num_observations: int | None = 200,
         input_warping: bool = False,
         double_precision: bool = True,
-        noise_level: float = 0,
         num_restarts: int = 20,
         optimization_strategy: str = "gradient",
         num_raw_samples: int = 200,
@@ -89,7 +87,6 @@ class BoTorchSearcher(SingleObjectiveBaseSearcher):
         self.max_num_observations = max_num_observations
         self.double_precision = double_precision
         self.input_warping = input_warping
-        self.noise_level = noise_level
         self.trial_configs = dict()
         self.pending_trials = set()
         self.trial_observations = dict()
@@ -239,15 +236,12 @@ class BoTorchSearcher(SingleObjectiveBaseSearcher):
             X_tensor = X_tensor.double()
             Y_tensor = Y_tensor.double()
 
-        Y_noise = self.noise_level * randn_like(Y_tensor)
-
         if self.input_warping:
             warp_tf = Warp(indices=list(range(X_tensor.shape[-1])))
         else:
             warp_tf = None
-        return SingleTaskGP(
-            X_tensor, Y_tensor, train_Yvar=Y_noise, input_transform=warp_tf
-        )
+
+        return SingleTaskGP(X_tensor, Y_tensor, input_transform=warp_tf)
 
     def _config_to_feature_matrix(self, configs: list[dict]) -> Tensor:
         bounds = Tensor(self._hp_ranges.get_ndarray_bounds()).T
