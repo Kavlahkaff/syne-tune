@@ -62,6 +62,10 @@ extra = [
     "botorch>=0.7.2",
     # moo
     "pymoo>=0.6.0",
+    "huggingface_hub",
+    "transformers",]
+vllm = [
+    "vllm",
 ]
 
 [project.urls]
