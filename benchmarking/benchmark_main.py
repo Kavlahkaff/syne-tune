@@ -13,6 +13,8 @@ from benchmarking.benchmarks import (
     benchmark_definitions,
 )
 from syne_tune.backend.simulator_backend.simulator_callback import SimulatorCallback
+import os
+import gc
 from syne_tune.blackbox_repository.simulated_tabular_backend import (
     BlackboxRepositoryBackend,
 )
@@ -24,6 +26,8 @@ def run(
     method_names,
     benchmark_names,
     seeds,
+    checkpoint_dir="",
+    gpu_memory_utilization: float = 0.2,
     max_num_evaluations=None,
     n_workers: int = 4,
 ):
@@ -34,6 +38,16 @@ def run(
     )
 
     combinations = list(itertools.product(method_names, seeds, benchmark_names))
+
+    fmbo_model, fmbo_tokenizer = None, None
+    if checkpoint_dir and any(m.startswith("OPT") for m in method_names):
+        from syne_tune.optimizer.schedulers.searchers.fmbo.fmbo_searcher import load_fmbo_model
+        from pathlib import Path
+        fmbo_model, fmbo_tokenizer, _ = load_fmbo_model(
+            Path(checkpoint_dir),
+            gpu_memory_utilization=gpu_memory_utilization,
+            use_vllm=True
+        )
 
     print(f"Going to evaluate: {combinations}")
     exp_names = []
@@ -67,6 +81,7 @@ def run(
         ]
         scheduler = methods[method](
             MethodArguments(
+                benchmark_name=benchmark.blackbox_name + '_' + benchmark.dataset_name,
                 config_space=backend.blackbox.configuration_space,
                 metric=benchmark.metric,
                 mode=benchmark.mode,
@@ -74,8 +89,12 @@ def run(
                 max_t=max_t,
                 time_attr=time_attr,
                 num_brackets=1,
+                checkpoint_dir=checkpoint_dir,
                 use_surrogates="lcbench" in benchmark_name,
                 points_to_evaluate=points_to_evaluate,
+                model=fmbo_model,
+                tokenizer=fmbo_tokenizer,
+                gpu_memory_utilization=gpu_memory_utilization,
             )
         )
 
@@ -106,6 +125,11 @@ def run(
         )
         tuner.run()
         exp_names.append(tuner.name)
+
+        # Explicit cleanup to avoid OOM due to accumulating Tuner/Scheduler histories
+        del tuner, scheduler, backend, points_to_evaluate
+        gc.collect()
+
     return exp_names
 
 
@@ -144,6 +168,20 @@ if __name__ == "__main__":
         type=int,
         default=4,
     )
+    parser.add_argument(
+        "--checkpoint_dir",
+        type=str,
+        required=False,
+        default="",
+        help="directory for optformer/fmbo model checkpoints",
+    )
+    parser.add_argument(
+        "--gpu_utilization",
+        type=float,
+        required=False,
+        default=0.2,
+        help="GPU memory utilization for vLLM",
+    )
 
     args, _ = parser.parse_known_args()
     if args.run_all_seeds:
@@ -160,5 +198,11 @@ if __name__ == "__main__":
         method_names=method_names,
         benchmark_names=benchmark_names,
         seeds=seeds,
+        checkpoint_dir=args.checkpoint_dir,
+        gpu_memory_utilization=args.gpu_utilization,
         n_workers=args.n_workers,
     )
+
+    if args.checkpoint_dir and any(m.startswith("OPT") for m in method_names):
+        # Force kill lingering vLLM/Ray daemons to release cluster allocation
+        os._exit(0)

@@ -149,6 +149,34 @@ def detect_hf_checkpoint(path):
         return True
 
 
+def load_fmbo_model(checkpoint_dir: str | Path, tokenizer_dir: str | Path = "synetune/bbo-pile-tokenizer", gpu_memory_utilization: float = 0.2, use_vllm: bool = True):
+    """
+    Load model + tokenizer once, for reuse across multiple FMBOSearcher
+    instances (e.g. one per seed) without repeating vLLM engine init/compile cost.
+    Returns (model, tokenizer, use_vllm_flag) or (None, None, False) if the
+    checkpoint isn't an HF checkpoint (falls back to per-searcher construction).
+    """
+    checkpoint_dir = resolve_checkpoint(checkpoint_dir)
+    tokenizer_dir = resolve_checkpoint(tokenizer_dir)
+    use_hf_checkpoint = detect_hf_checkpoint(checkpoint_dir)
+    if not (use_vllm and use_hf_checkpoint):
+        return None, None, False
+
+    from vllm import LLM
+    from vllm.config.structured_outputs import StructuredOutputsConfig
+    from transformers import AutoTokenizer
+
+    model = LLM(
+        model=str(checkpoint_dir),
+        enforce_eager=True,
+        structured_outputs_config=StructuredOutputsConfig(backend="xgrammar"),
+        gpu_memory_utilization=gpu_memory_utilization,
+    )
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+    tokenizer.pad_token = tokenizer.eos_token
+    return model, tokenizer, True
+
+
 class FMBOSearcher(SingleObjectiveBaseSearcher):
     """
     Searcher using a pretrained FMBO LLM to suggest hyperparameter configurations.
@@ -178,6 +206,9 @@ class FMBOSearcher(SingleObjectiveBaseSearcher):
         n_sample_configurations: int = 1,
         use_vllm: bool = True,
         tokenizer_dir: str | Path = "synetune/bbo-pile-tokenizer",
+        gpu_memory_utilization: float = 0.2,
+        model=None,
+        tokenizer=None,
     ):
         """
         :param checkpoint_dir: Local path to a model checkpoint, or a HuggingFace repo
@@ -196,6 +227,9 @@ class FMBOSearcher(SingleObjectiveBaseSearcher):
         :param tokenizer_dir: Local path to a tokenizer, or a HuggingFace repo ID.
             Defaults to ``"synetune/bbo-pile-tokenizer"`` which is downloaded
             automatically via ``huggingface_hub`` if not present locally.
+        :param gpu_memory_utilization: The fraction of GPU memory to be used for the model executor.
+        :param model: Optional pre-built model (vllm.LLM or HF model) to reuse across multiple searchers/seeds instead of loading + compiling a fresh one each time.
+        :param tokenizer: Optional pre-built tokenizer, paired with `model`.
         """
         super().__init__(config_space, points_to_evaluate, random_seed)
         checkpoint_dir = resolve_checkpoint(checkpoint_dir)
@@ -208,7 +242,12 @@ class FMBOSearcher(SingleObjectiveBaseSearcher):
             assert (
                 self.use_hf_checkpoint
             ), "Can only use vllm with a HF checkpoint, convert the litgpt checkpoint first."
-        if self.use_vllm:
+        if model is not None:
+            self.model = model
+            self.tokenizer = tokenizer
+            if self.tokenizer is not None and self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+        elif self.use_vllm:
             from vllm import LLM
             from vllm.config.structured_outputs import StructuredOutputsConfig
             from transformers import AutoTokenizer
@@ -217,6 +256,7 @@ class FMBOSearcher(SingleObjectiveBaseSearcher):
                 model=str(checkpoint_dir),
                 enforce_eager=True,
                 structured_outputs_config=StructuredOutputsConfig(backend="xgrammar"),
+                gpu_memory_utilization=gpu_memory_utilization,
             )
             self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
             self.tokenizer.pad_token = self.tokenizer.eos_token

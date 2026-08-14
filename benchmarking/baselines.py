@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from syne_tune.blackbox_repository.simulated_tabular_backend import (
     BlackboxRepositoryBackend,
@@ -8,6 +10,7 @@ from syne_tune.optimizer.schedulers.asha import AsynchronousSuccessiveHalving
 from syne_tune.optimizer.schedulers.single_objective_scheduler import (
     SingleObjectiveScheduler,
 )
+from syne_tune.optimizer.schedulers.searchers.fmbo.fmbo_searcher import FMBOSearcher
 
 
 @dataclass
@@ -23,6 +26,11 @@ class MethodArguments:
     use_surrogates: bool = False
     num_brackets: int | None = 1
     verbose: bool | None = False
+    checkpoint_dir: str | None = None
+    benchmark_name: str | None = None
+    model: Any | None = None
+    tokenizer: Any | None = None
+    gpu_memory_utilization: float = 0.2
 
 
 class Methods:
@@ -35,10 +43,44 @@ class Methods:
     CQR = "CQR"
     BOHB = "BOHB"
 
+    # optformer/fmbo
+    OPT_RS = "OPT-RS"
+    OPT_CQR = "OPT-CQR"
+    OPT_REA = "OPT-REA"
+    OPT_BORE = "OPT-BORE"
+    OPT_TPE = "OPT-TPE"
+    OPT_HEBO = "OPT-HEBO"
+    OPT_CQR_TS = "OPT-CQR-TS"
+    OPT_CQR_TS_5 = "OPT-CQR-TS-5"
+
     # multifidelity
     ASHA = "ASHA"
     ASHABORE = "ASHABORE"
     ASHACQR = "ASHACQR"
+
+
+def _fmbo_scheduler(method_arguments, algorithm: str, n_sample_configurations: int = 1):
+    return SingleObjectiveScheduler(
+        config_space=method_arguments.config_space,
+        metric=method_arguments.metric,
+        do_minimize=method_arguments.mode == "min",
+        random_seed=method_arguments.random_seed,
+        searcher=FMBOSearcher(
+            config_space=method_arguments.config_space,
+            checkpoint_dir=Path(method_arguments.checkpoint_dir) if method_arguments.checkpoint_dir else "synetune/qwen3_80M_token_2B_lr_5e-3_bsz_16_seed_0",
+            tokenizer_dir="synetune/bbo-pile-tokenizer",
+            use_vllm=True,
+            task_info={'name': method_arguments.benchmark_name,
+                       'algorithm': algorithm,
+                       'metric_names': "feval"},
+            random_seed=method_arguments.random_seed,
+            points_to_evaluate=method_arguments.points_to_evaluate,
+            n_sample_configurations=n_sample_configurations,
+            model=method_arguments.model,
+            tokenizer=method_arguments.tokenizer,
+            gpu_memory_utilization=method_arguments.gpu_memory_utilization,
+        ),
+    )
 
 
 methods = {
@@ -126,6 +168,14 @@ methods = {
         time_attr=method_arguments.time_attr,
         searcher_kwargs={"points_to_evaluate": method_arguments.points_to_evaluate},
     ),
+    Methods.OPT_RS: lambda method_arguments: _fmbo_scheduler(method_arguments, "RS"),
+    Methods.OPT_CQR: lambda method_arguments: _fmbo_scheduler(method_arguments, "CQR"),
+    Methods.OPT_REA: lambda method_arguments: _fmbo_scheduler(method_arguments, "REA"),
+    Methods.OPT_BORE: lambda method_arguments: _fmbo_scheduler(method_arguments, "BORE"),
+    Methods.OPT_TPE: lambda method_arguments: _fmbo_scheduler(method_arguments, "TPE"),
+    Methods.OPT_HEBO: lambda method_arguments: _fmbo_scheduler(method_arguments, "HEBO"),
+    Methods.OPT_CQR_TS: lambda method_arguments: _fmbo_scheduler(method_arguments, "CQR", n_sample_configurations=50),
+    Methods.OPT_CQR_TS_5: lambda method_arguments: _fmbo_scheduler(method_arguments, "CQR", n_sample_configurations=5),
 }
 
 
