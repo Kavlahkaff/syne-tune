@@ -65,7 +65,7 @@ extra = [
     "huggingface_hub",
     "transformers",]
 vllm = [
-    "vllm",
+    "vllm; sys_platform != 'darwin'",
 ]
 
 [project.urls]
