@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,7 +20,7 @@ multifidelity_style2 = "dashdot"
 show_seeds = False
 marker_ours = "*"
 
-cmap = plt.get_cmap("viridis")
+cmap = mpl.colormaps["viridis"]
 method_styles = {}
 
 
