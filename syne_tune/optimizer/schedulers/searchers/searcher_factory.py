@@ -14,6 +14,7 @@ searchers = [
     "regularized_evolution",
     "cqr",
     "botorch",
+    "fast_cma_es",
 ]
 
 
@@ -77,6 +78,16 @@ def searcher_cls(searcher_name: str, is_multi_objective: bool = False):
         )
 
         return BoTorchSearcher
+    elif searcher_name == "fast_cma_es":
+        if is_multi_objective:
+            raise ValueError(
+                f"Searcher '{searcher_name}' does not support multi-objective optimization."
+            )
+        from syne_tune.optimizer.schedulers.searchers.fast_cma_es.fast_cma_es_searcher import (
+            FastCMAESSearcher,
+        )
+
+        return FastCMAESSearcher
     else:
         raise ValueError(f"Unknown searcher: {searcher_name}")
 

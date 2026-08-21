@@ -247,6 +247,49 @@ class BOTorch(SingleObjectiveScheduler):
         )
 
 
+class FastCMAES(SingleObjectiveScheduler):
+    """
+    Implements CMA-ES based on the ask-tell interface of
+    `fast-cma-es <https://github.com/dietmarwo/fast-cma-es>`__. Experimental,
+    best suited to (mostly) continuous configuration spaces.
+
+    :param config_space: Configuration space for the evaluation function.
+    :param metric: Name of the metric to optimize.
+    :param do_minimize: Set to True if the objective function should be minimized.
+    :param random_seed: Seed for initializing random number generators.
+    :param points_to_evaluate: A set of initial configurations to be evaluated before starting the optimization.
+    """
+
+    def __init__(
+        self,
+        config_space: dict[str, Any],
+        metric: str,
+        do_minimize: bool | None = True,
+        random_seed: int | None = None,
+        points_to_evaluate: list[dict] | None = None,
+        searcher_kwargs: dict[str, Any] | None = None,
+    ):
+        from syne_tune.optimizer.schedulers.searchers.fast_cma_es.fast_cma_es_searcher import (
+            FastCMAESSearcher,
+        )
+
+        if searcher_kwargs is None:
+            searcher_kwargs = {}
+
+        super(FastCMAES, self).__init__(
+            config_space=config_space,
+            metric=metric,
+            do_minimize=do_minimize,
+            searcher=FastCMAESSearcher(
+                config_space=config_space,
+                points_to_evaluate=points_to_evaluate,
+                random_seed=random_seed,
+                **searcher_kwargs
+            ),
+            random_seed=random_seed,
+        )
+
+
 class ASHA(AsynchronousSuccessiveHalving):
     """
     Asynchronous Successive Halving (ASHA) as proposed by:
@@ -628,6 +671,7 @@ baselines_dict = {
     "TPE": TPE,
     "REA": REA,
     "BOTorch": BOTorch,
+    "FastCMAES": FastCMAES,
     "EHVI": EHVI,
     "FMBO": FMBOScheduler,
 }

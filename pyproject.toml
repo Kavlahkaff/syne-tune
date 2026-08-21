@@ -60,13 +60,12 @@ extra = [
     "huggingface_hub",
     # botorch
     "botorch>=0.7.2",
+    # fast-cma-es
+    "fcmaes",
     # moo
     "pymoo>=0.6.0",
     "huggingface_hub",
     "transformers",]
-vllm = [
-    "vllm",
-]
 
 [project.urls]
 "Homepage" = "https://github.com/syne-tune/syne-tune"
