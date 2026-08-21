@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
 
 rs_color = "black"
 gp_color = "tab:orange"
@@ -20,7 +19,7 @@ multifidelity_style2 = "dashdot"
 show_seeds = False
 marker_ours = "*"
 
-cmap = cm.get_cmap("viridis")
+cmap = plt.get_cmap("viridis")
 method_styles = {}
 
 
